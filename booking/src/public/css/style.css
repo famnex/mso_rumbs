@@ -1093,14 +1093,15 @@ body {
 }
 .btn-slot-add {
     margin: auto;
-    font-size: 12px;
+    font-size: 12.5px;
     font-weight: 700;
     color: var(--slot-free-text);
-    opacity: 0.15;
-    transition: opacity 0.2s;
+    opacity: 0.65;
+    transition: all 0.2s ease-in-out;
 }
 .slot-free:hover .btn-slot-add {
     opacity: 1;
+    transform: scale(1.05);
 }
 
 /* Booked Slots (Base) */
