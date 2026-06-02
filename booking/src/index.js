@@ -84,8 +84,9 @@ app.use((req, res, next) => {
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
-// Serve Static Files
+// Serve Static Files (both root and subpath for fallback robustness)
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/booking', express.static(path.join(__dirname, 'public')));
 
 // Database connector imports
 const { dbQuery } = require('./db');
@@ -109,18 +110,61 @@ app.use(async (req, res, next) => {
     }
 });
 
+// Middleware to dynamically rewrite HTML links and redirects if running under a subpath (e.g. /booking)
+app.use((req, res, next) => {
+    const basePath = '/booking';
+
+    // 1. Override res.redirect to automatically prepend base path
+    const originalRedirect = res.redirect;
+    res.redirect = function (url) {
+        if (url.startsWith('/') && !url.startsWith(basePath + '/') && url !== basePath) {
+            url = basePath + url;
+        }
+        originalRedirect.call(this, url);
+    };
+
+    // 2. Override res.render to rewrite absolute paths in rendered HTML
+    const originalRender = res.render;
+    res.render = function (view, options, fn) {
+        if (typeof fn !== 'function') {
+            fn = (err, html) => {
+                if (err) return next(err);
+                
+                // Rewrite absolute links starting with "/" (href, src, action)
+                let rewrittenHtml = html;
+                rewrittenHtml = rewrittenHtml
+                    .replace(/(href|src|action)="\/(?!(booking\/|booking"|booking\?))/g, `$1="${basePath}/`)
+                    .replace(/(href|src|action)='\/(?!(booking\/|booking'|booking\?))/g, `$1='${basePath}/`);
+
+                res.send(rewrittenHtml);
+            };
+        }
+        originalRender.call(this, view, options, fn);
+    };
+
+    next();
+});
+
 // Core Routers Binding
 const authRouter = require('./routes/auth');
 const bookingsRouter = require('./routes/bookings');
 const adminRouter = require('./routes/admin');
 
+// Bind to both / and /booking to ensure 100% proxy compatibility
 app.use('/', authRouter);
 app.use('/', bookingsRouter);
 app.use('/', adminRouter);
 
-// GET / -> redirects to bookings
+app.use('/booking', authRouter);
+app.use('/booking', bookingsRouter);
+app.use('/booking', adminRouter);
+
+// GET / -> redirects to bookings (and /booking subpath redirect)
 app.get('/', (req, res) => {
     res.redirect('/bookings');
+});
+app.get('/booking', (req, res) => {
+    res.redirect('/booking/bookings');
 });
 
 // 404 Error handler
