@@ -1635,6 +1635,119 @@ body {
     justify-content: space-between;
 }
 
+/* User Dropdown Container and Menu styling (Premium Year 2026 Glassmorphism) */
+.user-dropdown-container {
+    position: relative;
+    display: inline-block;
+}
+
+.user-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    width: 240px;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    padding: 8px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    animation: dropdownFadeIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-origin: top right;
+}
+
+.user-dropdown.hidden {
+    display: none !important;
+}
+
+@keyframes dropdownFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95) translateY(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-main);
+    text-decoration: none;
+    border-radius: 10px;
+    background: transparent;
+    border: none;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+}
+
+.dropdown-item:hover {
+    background: var(--slot-free-hover);
+    color: var(--primary);
+}
+
+.dropdown-item.admin-item:hover {
+    color: var(--warning);
+    background: rgba(245, 158, 11, 0.08);
+}
+
+.dropdown-item.logout-item:hover {
+    color: var(--danger);
+    background: rgba(239, 68, 68, 0.08);
+}
+
+.dropdown-icon {
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+}
+
+.dropdown-divider {
+    height: 1px;
+    background: var(--border-color);
+    margin: 4px 6px;
+}
+
+/* Theme Toggle Button inside Dropdown overrides */
+.theme-toggle-btn {
+    position: relative;
+}
+.theme-icon-sun, .theme-icon-moon {
+    font-size: 16px;
+    display: inline-block;
+    width: 20px;
+    text-align: center;
+}
+/* Show/hide sun/moon icons based on the current theme */
+[data-theme="light"] .theme-icon-sun {
+    display: inline-block;
+}
+[data-theme="light"] .theme-icon-moon {
+    display: none;
+}
+[data-theme="dark"] .theme-icon-sun {
+    display: none;
+}
+[data-theme="dark"] .theme-icon-moon {
+    display: inline-block;
+}
+
 @media (max-width: 1024px) {
     .login-wrapper {
         grid-template-columns: 1fr;
@@ -1821,8 +1934,24 @@ body {
     }
     .modern-calendar {
         table-layout: fixed !important;
-        width: 100% !important;
+        width: auto !important;
+        margin: 0 auto !important;
         border-collapse: collapse !important;
+    }
+    .modern-calendar th, .modern-calendar td {
+        width: 34px !important;
+        min-width: 34px !important;
+        max-width: 34px !important;
+        height: 48px !important;
+        padding: 1px !important;
+        text-align: center !important;
+        vertical-align: middle !important;
+        box-sizing: border-box !important;
+    }
+    .modern-calendar th.time-col, .modern-calendar td.time-col {
+        width: 46px !important;
+        min-width: 46px !important;
+        max-width: 46px !important;
     }
     .modern-calendar th {
         font-size: 11px !important;
@@ -1834,20 +1963,9 @@ body {
         font-weight: 800 !important;
     }
     .header-day-date {
-        font-size: 9px !important;
-        opacity: 0.8;
-    }
-    .modern-calendar td {
-        height: 48px !important;
-        padding: 1px !important;
-        text-align: center !important;
-        vertical-align: middle !important;
-    }
-    .modern-calendar td.time-col {
-        width: 46px !important;
-        min-width: 46px !important;
-        max-width: 46px !important;
-        padding: 2px !important;
+        font-size: 9.5px !important;
+        font-weight: 700 !important;
+        opacity: 0.85;
     }
     .period-name-mobile {
         font-weight: 800 !important;

@@ -1,22 +1,44 @@
 document.addEventListener('DOMContentLoaded', () => {
     // Theme mechanics (Dark/Light mode)
     const themeToggle = document.getElementById('theme-toggle');
+    const themeToggleDropdown = document.getElementById('theme-toggle-dropdown');
     const htmlElement = document.documentElement;
 
-    if (themeToggle) {
-        themeToggle.addEventListener('click', () => {
+    const toggleThemeFn = (btn) => {
+        if (!btn) return;
+        btn.addEventListener('click', () => {
             const currentTheme = htmlElement.getAttribute('data-theme') || 'light';
             const newTheme = currentTheme === 'light' ? 'dark' : 'light';
             
-            // Add a small scale compression during click
-            themeToggle.style.transform = 'scale(0.9)';
+            btn.style.transform = 'scale(0.9)';
             setTimeout(() => {
-                themeToggle.style.transform = '';
+                btn.style.transform = '';
             }, 100);
 
             htmlElement.setAttribute('data-theme', newTheme);
             localStorage.setItem('theme', newTheme);
             console.log(`Theme toggled to: ${newTheme}`);
+        });
+    };
+
+    toggleThemeFn(themeToggle);
+    toggleThemeFn(themeToggleDropdown);
+
+    // User Dropdown Menu logic (Year 2026 Premium Ergonomics)
+    const trigger = document.getElementById('user-menu-trigger');
+    const dropdown = document.getElementById('user-dropdown');
+
+    if (trigger && dropdown) {
+        trigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            dropdown.classList.toggle('hidden');
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!trigger.contains(e.target) && !dropdown.contains(e.target)) {
+                dropdown.classList.add('hidden');
+            }
         });
     }
 
