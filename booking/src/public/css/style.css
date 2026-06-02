@@ -41,23 +41,23 @@
     --card-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.04);
     
     --text-main: #1e293b;
-    --text-muted: #64748b;
+    --text-muted: #475569;
     --text-inverse: #ffffff;
     
     --primary: #2563eb;
     --primary-hover: #1d4ed8;
     --primary-glow: rgba(37, 99, 235, 0.15);
     
-    --success: #10b981;
-    --success-hover: #059669;
-    --success-bg: rgba(16, 185, 129, 0.1);
+    --success: #059669;
+    --success-hover: #047857;
+    --success-bg: rgba(5, 150, 105, 0.1);
     
-    --danger: #ef4444;
-    --danger-hover: #dc2626;
-    --danger-bg: rgba(239, 68, 68, 0.1);
+    --danger: #dc2626;
+    --danger-hover: #b91c1c;
+    --danger-bg: rgba(220, 38, 38, 0.1);
     
-    --warning: #f59e0b;
-    --warning-bg: rgba(245, 158, 11, 0.1);
+    --warning: #b45309;
+    --warning-bg: rgba(180, 83, 9, 0.1);
 
     --border-color: rgba(226, 232, 240, 0.8);
     --input-bg: rgba(255, 255, 255, 0.9);
@@ -92,7 +92,7 @@
     --card-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
     
     --text-main: #f3f4f6;
-    --text-muted: #9ca3af;
+    --text-muted: #cbd5e1;
     --text-inverse: #0b0f19;
     
     --primary: #3b82f6;
@@ -107,7 +107,7 @@
     --danger-hover: #fca5a5;
     --danger-bg: rgba(248, 113, 113, 0.15);
     
-    --warning: #fbbf24;
+    --warning: #fcd34d;
     --warning-bg: rgba(251, 191, 36, 0.15);
 
     --border-color: rgba(255, 255, 255, 0.08);
@@ -1009,11 +1009,13 @@ body {
 
 .calendar-grid-container {
     padding: 0; /* flat alignment inside table */
-    overflow: hidden;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 .modern-calendar {
     width: 100%;
+    min-width: 850px; /* Ensures spacious columns on mobile for smooth horizontal swipe */
     border-collapse: separate;
     border-spacing: 0;
     table-layout: fixed;
