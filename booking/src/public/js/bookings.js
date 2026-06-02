@@ -113,3 +113,34 @@ function openAdminEditTimetableModal(bookingId, roomId, roomName, periodId, peri
     
     openModal('admin-edit-timetable-modal');
 }
+
+function openDetailModal(roomName, periodName, dateStr, userStr, notesStr) {
+    const modal = document.getElementById('detail-modal');
+    if (!modal) return;
+
+    document.getElementById('detail-room-name').value = roomName;
+    document.getElementById('detail-period-name').value = periodName;
+    document.getElementById('detail-user').value = userStr;
+    document.getElementById('detail-notes').value = notesStr || 'Keine Angabe';
+
+    // Format date nicely (de-DE)
+    const dateObj = new Date(dateStr);
+    const dateFormatted = dateObj.toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
+    document.getElementById('detail-date-formatted').value = dateFormatted;
+
+    modal.classList.remove('hidden');
+}
+
+function closeDetailModal() {
+    const modal = document.getElementById('detail-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+}
+
+// Extend existing escape key listener to close detail modal
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        closeDetailModal();
+    }
+});

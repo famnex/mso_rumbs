@@ -1605,6 +1605,36 @@ body {
 }
 
 /* 14. MOBILE & TABLET BREAKPOINTS */
+/* Utility visibility toggles */
+.day-name-mobile,
+.period-header-mobile,
+.period-name-mobile,
+.period-time-mobile,
+.slot-desc-mobile,
+.slot-free-mobile,
+.nav-text-mobile,
+.nav-badge-mobile {
+    display: none;
+}
+
+.day-name-desktop,
+.period-header-desktop,
+.period-name-desktop,
+.period-time-desktop,
+.slot-desc-desktop,
+.slot-free-desktop,
+.nav-text-desktop,
+.nav-badge-desktop {
+    display: inline;
+}
+
+.slot-desc-desktop {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    justify-content: space-between;
+}
+
 @media (max-width: 1024px) {
     .login-wrapper {
         grid-template-columns: 1fr;
@@ -1624,71 +1654,274 @@ body {
 }
 
 @media (max-width: 768px) {
-    .outer {
-        padding: 12px;
-    }
-    .main-header {
-        flex-direction: column;
-        gap: 16px;
-        padding: 16px;
-        border-radius: 16px;
-    }
-    .main-nav {
-        flex-direction: column;
-        gap: 8px;
-        width: 100%;
-        margin-right: 0;
-    }
-    .user-control {
-        border-left: none;
-        border-top: 1px solid var(--border-color);
-        padding-top: 12px;
-        padding-left: 0;
-        width: 100%;
-        justify-content: space-between;
-    }
-    .theme-btn {
-        width: 100%;
-        border-radius: 10px;
-        height: 38px;
+    /* Responsive visibility swaps */
+    .day-name-desktop,
+    .period-header-desktop,
+    .period-name-desktop,
+    .period-time-desktop,
+    .slot-desc-desktop,
+    .slot-free-desktop,
+    .nav-text-desktop,
+    .nav-badge-desktop {
+        display: none !important;
     }
     
-    /* Calendar Responsive view */
-    .calendar-header-bar {
-        flex-direction: column;
-        gap: 16px;
-        align-items: flex-start;
+    .day-name-mobile,
+    .period-header-mobile {
+        display: inline !important;
     }
-    .calendar-controls {
+    .period-name-mobile,
+    .period-time-mobile {
+        display: block !important;
+    }
+    .slot-desc-mobile {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
         width: 100%;
+        height: 100%;
     }
-    .room-select-form select {
-        width: 100%;
+    .slot-free-mobile {
+        display: inline-block !important;
     }
-    
-    .week-navigation {
-        flex-direction: column;
-        gap: 10px;
-    }
-    .btn-nav-week {
-        width: 100%;
-        text-align: center;
-    }
-    .week-title-badge {
-        width: 100%;
-        text-align: center;
+    .nav-text-mobile,
+    .nav-badge-mobile {
+        display: inline-block !important;
     }
 
+    /* Outer Wrapper */
+    .outer {
+        padding: 10px;
+    }
+
+    /* Ultra-Compact Horizontal Header */
+    .main-header {
+        flex-direction: row !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        padding: 8px 12px !important;
+        gap: 8px !important;
+        border-radius: 14px !important;
+        margin-bottom: 15px !important;
+    }
+    .brand-link {
+        gap: 6px !important;
+    }
+    .brand-icon {
+        font-size: 20px !important;
+    }
+    .brand-text {
+        font-size: 14px !important;
+        max-width: 120px !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+    }
+    .main-nav {
+        flex-direction: row !important;
+        gap: 5px !important;
+        width: auto !important;
+        margin-right: 0 !important;
+        align-items: center !important;
+    }
+    .user-greeting-compact {
+        display: none !important;
+    }
+    .user-control-iconic {
+        width: 38px !important;
+        height: 38px !important;
+        min-width: 38px !important;
+        min-height: 38px !important;
+        padding: 0 !important;
+        border-radius: 50% !important;
+        gap: 0 !important;
+        background: var(--slot-free-hover) !important;
+    }
+    .nav-item-iconic, .btn-logout-iconic {
+        width: 38px !important;
+        height: 38px !important;
+        min-width: 38px !important;
+        min-height: 38px !important;
+        border-radius: 50% !important;
+    }
+    .theme-btn {
+        width: 38px !important;
+        height: 38px !important;
+        min-width: 38px !important;
+        min-height: 38px !important;
+        border-radius: 50% !important;
+        margin-left: 0 !important;
+        padding: 0 !important;
+    }
+    .theme-btn span {
+        font-size: 16px !important;
+        line-height: 38px !important;
+    }
+    
+    /* Compact Selectors 50/50 Grid */
+    .calendar-header-bar {
+        padding: 12px !important;
+        border-radius: 14px !important;
+        margin-bottom: 12px !important;
+        gap: 10px !important;
+    }
+    .calendar-info h2 {
+        font-size: 16px !important;
+    }
+    .calendar-selectors {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 8px !important;
+        width: 100% !important;
+        margin-top: 5px;
+    }
+    .calendar-select-wrapper, .room-select-form {
+        display: block !important;
+        width: 100% !important;
+        margin: 0 !important;
+    }
+    #calendar-category-select, #calendar-room-select {
+        width: 100% !important;
+        padding: 6px 10px !important;
+        font-size: 12px !important;
+        box-sizing: border-box !important;
+        border-radius: 6px !important;
+    }
+    .calendar-select-label {
+        display: none !important;
+    }
+    
+    /* Horizontal Week Navigation */
+    .week-navigation {
+        flex-direction: row !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        gap: 4px !important;
+        margin-bottom: 12px !important;
+    }
+    .btn-nav-week {
+        width: auto !important;
+        padding: 5px 8px !important;
+        font-size: 11px !important;
+        border-radius: 6px !important;
+        white-space: nowrap !important;
+    }
+    .week-title-badge {
+        width: auto !important;
+        padding: 5px 6px !important;
+        font-size: 11px !important;
+        border-radius: 6px !important;
+        white-space: nowrap !important;
+    }
+    
+    /* Calendar Grid - Ultra-compact Einbildschirm-Ansicht */
+    .calendar-grid-container {
+        padding: 6px !important;
+        border-radius: 14px !important;
+    }
+    .modern-calendar {
+        table-layout: fixed !important;
+        width: 100% !important;
+        border-collapse: collapse !important;
+    }
+    .modern-calendar th {
+        font-size: 11px !important;
+        height: auto !important;
+        padding: 4px 1px !important;
+    }
+    .header-day-name {
+        font-size: 11px !important;
+        font-weight: 800 !important;
+    }
+    .header-day-date {
+        font-size: 9px !important;
+        opacity: 0.8;
+    }
+    .modern-calendar td {
+        height: 48px !important;
+        padding: 1px !important;
+        text-align: center !important;
+        vertical-align: middle !important;
+    }
+    .modern-calendar td.time-col {
+        width: 46px !important;
+        min-width: 46px !important;
+        max-width: 46px !important;
+        padding: 2px !important;
+    }
+    .period-name-mobile {
+        font-weight: 800 !important;
+        font-size: 11px !important;
+        color: var(--text-main) !important;
+    }
+    .period-time-mobile {
+        font-size: 8.5px !important;
+        color: var(--text-muted) !important;
+        margin-top: 1px;
+    }
+
+    /* Minimalist Slot Indicators */
+    .slot {
+        border-radius: 4px !important;
+    }
+    .modern-calendar td.slot.booked {
+        transform: scale(0.96) !important;
+        border-radius: 6px !important;
+    }
+    .slot-free {
+        background: var(--slot-free-bg) !important;
+    }
+    .slot-free-mobile {
+        font-size: 16px !important;
+        font-weight: 800 !important;
+        color: var(--primary) !important;
+        opacity: 0.95;
+    }
+    .slot-booked-mobile {
+        font-size: 15px !important;
+        font-weight: 900 !important;
+        color: var(--danger) !important;
+    }
+    .slot-static-mobile {
+        font-size: 15px !important;
+        font-weight: 900 !important;
+        color: var(--warning) !important;
+    }
+    .slot-desc-mobile {
+        font-size: 15px !important;
+        display: flex !important;
+        justify-content: center;
+        align-items: center;
+        height: 100%;
+        width: 100%;
+    }
+    .slot-holiday {
+        background: rgba(16, 185, 129, 0.08) !important;
+        border: 1px dashed rgba(16, 185, 129, 0.3) !important;
+    }
+    .slot-tooltip {
+        display: none !important; /* disabled on touch screens */
+    }
+    
+    /* Horizontal scroll protection for all settings tables */
+    .zebra-table, .admin-list-table {
+        display: block !important;
+        width: 100% !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        border-radius: 8px;
+    }
+    
     .stat-card {
-        padding: 16px;
+        padding: 12px;
     }
     .stat-icon {
-        width: 48px;
-        height: 48px;
-        font-size: 24px;
+        width: 40px;
+        height: 40px;
+        font-size: 20px;
     }
     .stat-number {
-        font-size: 20px;
+        font-size: 18px;
     }
     .code-grid {
         grid-template-columns: 1fr;
