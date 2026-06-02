@@ -182,7 +182,8 @@ router.get('/login/jwt', async (req, res) => {
     }
 
     try {
-        let user = await dbQuery.get("SELECT * FROM users WHERE username = ?", [username]);
+        // Perform case-insensitive lookup to find the user (handles capitalization mismatch from LDAP/SSO)
+        let user = await dbQuery.get("SELECT * FROM users WHERE username = ? COLLATE NOCASE", [username]);
 
         // JIT user provisioning
         if (!user) {
@@ -201,11 +202,32 @@ router.get('/login/jwt', async (req, res) => {
                     [username, firstname, lastname, email, displayname, jwtConfig.default_authlevel, new Date().toISOString()]
                 );
                 console.log(`JWT SSO: Provisioned new user account for: ${username}`);
-                user = await dbQuery.get("SELECT * FROM users WHERE username = ?", [username]);
+                user = await dbQuery.get("SELECT * FROM users WHERE username = ? COLLATE NOCASE", [username]);
             } else {
                 req.session.error = 'Dieses Benutzerkonto existiert im Buchungssystem nicht.';
                 return res.redirect('/login');
             }
+        } else {
+            // Automatically update and sync user details from JWT token to keep local database current
+            const firstnameKey = jwtConfig.field_mapping.firstname || 'firstname';
+            const lastnameKey = jwtConfig.field_mapping.lastname || 'lastname';
+            const emailKey = jwtConfig.field_mapping.email || 'email';
+
+            const firstname = payload[firstnameKey] || user.firstname || '';
+            const lastname = payload[lastnameKey] || user.lastname || '';
+            const email = payload[emailKey] || user.email || '';
+            const displayname = `${firstname} ${lastname}`.trim() || user.displayname || username;
+
+            await dbQuery.run(
+                `UPDATE users SET firstname = ?, lastname = ?, email = ?, displayname = ? WHERE user_id = ?`,
+                [firstname, lastname, email, displayname, user.user_id]
+            );
+            
+            // Sync in-memory values for current session
+            user.firstname = firstname;
+            user.lastname = lastname;
+            user.email = email;
+            user.displayname = displayname;
         }
 
         // Account status check
