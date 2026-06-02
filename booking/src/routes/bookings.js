@@ -289,6 +289,8 @@ router.post('/bookings/edit', requireLogin, async (req, res) => {
         req.session.error = 'Fehler beim Bearbeiten der Buchung.';
         res.redirect('/bookings');
     }
+});
+
 // GET /bookings/my-bookings (View Logged-in User's Bookings - Future / Archive)
 router.get('/bookings/my-bookings', requireLogin, async (req, res) => {
     const showArchive = req.query.archive === 'true';
