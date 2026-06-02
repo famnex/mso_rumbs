@@ -78,6 +78,46 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    // Calendar Page Kaskadierende Schnellwahl (Kategorie -> Raum)
+    const calCategorySelect = document.getElementById('calendar-category-select');
+    const calRoomSelect = document.getElementById('calendar-room-select');
+
+    if (calCategorySelect && calRoomSelect) {
+        const filterCalRooms = (deptId) => {
+            const options = calRoomSelect.querySelectorAll('option');
+            options.forEach(opt => {
+                const optDept = opt.getAttribute('data-dept');
+                if (!deptId || optDept === deptId) {
+                    opt.style.display = '';
+                    opt.disabled = false;
+                } else {
+                    opt.style.display = 'none';
+                    opt.disabled = true;
+                }
+            });
+        };
+
+        // Initial filter on load based on current selected category
+        if (calCategorySelect.value) {
+            filterCalRooms(calCategorySelect.value);
+        }
+
+        calCategorySelect.addEventListener('change', (e) => {
+            const selectedDeptId = e.target.value;
+            filterCalRooms(selectedDeptId);
+            
+            // If currently selected room is not in the newly selected category, select the first visible room and reload
+            const activeOpt = calRoomSelect.querySelector(`option[value="${calRoomSelect.value}"]`);
+            if (activeOpt && activeOpt.disabled) {
+                const firstVisibleOpt = calRoomSelect.querySelector('option:not([disabled])');
+                if (firstVisibleOpt) {
+                    calRoomSelect.value = firstVisibleOpt.value;
+                    calRoomSelect.form.submit();
+                }
+            }
+        });
+    }
 });
 
 // Global Popup Modal Management Helpers (Year 2026 Premium Ergonomics)

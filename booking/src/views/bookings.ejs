@@ -21,19 +21,32 @@
         </h2>
     </div>
 
-    <!-- Room Selection Dropdown -->
+    <!-- Cascading Room Selectors (Category -> Room) -->
     <div class="calendar-controls">
-        <form action="/bookings" method="GET" class="room-select-form">
-            <label for="room-select">Anderer Raum:</label>
-            <select name="room_id" id="room-select" onchange="this.form.submit()">
-                <% allRooms.forEach(r => { %>
-                    <option value="<%= r.room_id %>" <%= r.room_id == room.room_id ? 'selected' : '' %>>
-                        <%= r.name %>
-                    </option>
-                <% }) %>
-            </select>
-            <input type="hidden" name="date" value="<%= selectedDate %>">
-        </form>
+        <div class="calendar-selectors" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+            <div class="calendar-select-wrapper" style="display: flex; align-items: center; gap: 6px;">
+                <span style="font-size: 13.5px; font-weight: 700; color: var(--text-muted);">Kategorie:</span>
+                <select id="calendar-category-select" style="padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); font-size: 13.5px; font-weight: 600; cursor: pointer; outline: none; transition: border-color 0.2s;">
+                    <option value="">-- Alle --</option>
+                    <% if (typeof headerCategories !== 'undefined' && headerCategories && headerCategories.length) { %>
+                        <% headerCategories.forEach(cat => { %>
+                            <option value="<%= cat.department_id %>" <%= room.department_id == cat.department_id ? 'selected' : '' %>><%= cat.name %></option>
+                        <% }) %>
+                    <% } %>
+                </select>
+            </div>
+            <form action="/bookings" method="GET" class="room-select-form" id="calendar-room-form" style="display: flex; align-items: center; gap: 6px; margin: 0;">
+                <label for="calendar-room-select" style="font-size: 13.5px; font-weight: 700; color: var(--text-muted); margin: 0;">Raum:</label>
+                <select name="room_id" id="calendar-room-select" onchange="this.form.submit()" style="padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); font-size: 13.5px; font-weight: 600; cursor: pointer; outline: none; transition: border-color 0.2s;">
+                    <% allRooms.forEach(r => { %>
+                        <option value="<%= r.room_id %>" data-dept="<%= r.department_id || '' %>" <%= r.room_id == room.room_id ? 'selected' : '' %>>
+                            <%= r.name %>
+                        </option>
+                    <% }) %>
+                </select>
+                <input type="hidden" name="date" value="<%= selectedDate %>">
+            </form>
+        </div>
     </div>
 </div>
 

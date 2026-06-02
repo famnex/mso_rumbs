@@ -229,36 +229,36 @@ router.post('/bookings/add', requireLogin, async (req, res) => {
 
 // POST /bookings/cancel (Cancel Dynamic Booking)
 router.post('/bookings/cancel', requireLogin, async (req, res) => {
-    const { booking_id, room_id, date } = req.body;
+    const { booking_id, room_id, date, redirect_to } = req.body;
 
     if (!booking_id) {
         req.session.error = 'Ungültige Stornierungsdaten.';
-        return res.redirect('/bookings');
+        return res.redirect(redirect_to || '/bookings');
     }
 
     try {
         const booking = await dbQuery.get("SELECT * FROM bookings WHERE booking_id = ?", [booking_id]);
         if (!booking) {
             req.session.error = 'Die Buchung existiert nicht.';
-            return res.redirect('/bookings');
+            return res.redirect(redirect_to || '/bookings');
         }
 
         // Verify authorization: User can only cancel their own booking, unless they are admin (authlevel = 1)
         if (booking.user_id !== req.session.userId && req.session.authlevel !== 1) {
             req.session.error = 'Sie sind nicht berechtigt, diese Buchung zu stornieren.';
-            return res.redirect(`/bookings?room_id=${room_id || booking.room_id}&date=${date || booking.date}`);
+            return res.redirect(redirect_to || `/bookings?room_id=${room_id || booking.room_id}&date=${date || booking.date}`);
         }
 
         // Perform cancellation (cancelled = 1)
         await dbQuery.run("UPDATE bookings SET cancelled = 1 WHERE booking_id = ?", [booking_id]);
 
         req.session.success = 'Buchung erfolgreich storniert!';
-        res.redirect(`/bookings?room_id=${room_id || booking.room_id}&date=${date || booking.date}`);
+        res.redirect(redirect_to || `/bookings?room_id=${room_id || booking.room_id}&date=${date || booking.date}`);
 
     } catch (e) {
         console.error('Cancel booking error:', e);
         req.session.error = 'Fehler beim Stornieren der Buchung.';
-        res.redirect('/bookings');
+        res.redirect(redirect_to || '/bookings');
     }
 });
 
@@ -288,6 +288,58 @@ router.post('/bookings/edit', requireLogin, async (req, res) => {
         console.error('Edit booking notes error:', e);
         req.session.error = 'Fehler beim Bearbeiten der Buchung.';
         res.redirect('/bookings');
+    }
+// GET /bookings/my-bookings (View Logged-in User's Bookings - Future / Archive)
+router.get('/bookings/my-bookings', requireLogin, async (req, res) => {
+    const showArchive = req.query.archive === 'true';
+    const today = new Date().toISOString().split('T')[0];
+
+    try {
+        const schoolNameSetting = await dbQuery.get("SELECT value FROM settings WHERE name='name' LIMIT 1;");
+        const schoolName = schoolNameSetting ? schoolNameSetting.value : 'Raumbelegung MSO';
+
+        let bookings = [];
+        if (showArchive) {
+            bookings = await dbQuery.all(`
+                SELECT b.*, r.name as room_name, p.name as period_name, p.time_start, p.time_end, w.name as week_name 
+                FROM bookings b
+                JOIN rooms r ON b.room_id = r.room_id
+                JOIN periods p ON b.period_id = p.period_id
+                LEFT JOIN weeks w ON b.week_id = w.week_id
+                WHERE b.user_id = ? AND b.cancelled = 0 AND b.date < ? AND b.date IS NOT NULL
+                ORDER BY b.date DESC, p.time_start DESC;
+            `, [req.session.userId, today]);
+        } else {
+            bookings = await dbQuery.all(`
+                SELECT b.*, r.name as room_name, p.name as period_name, p.time_start, p.time_end, w.name as week_name 
+                FROM bookings b
+                JOIN rooms r ON b.room_id = r.room_id
+                JOIN periods p ON b.period_id = p.period_id
+                LEFT JOIN weeks w ON b.week_id = w.week_id
+                WHERE b.user_id = ? AND b.cancelled = 0 AND (b.date >= ? OR b.date IS NULL)
+                ORDER BY b.date ASC, p.time_start ASC, b.day_num ASC;
+            `, [req.session.userId, today]);
+        }
+
+        res.render('my_bookings', {
+            title: 'Meine Buchungen',
+            schoolName,
+            displayName: req.session.displayName,
+            authlevel: req.session.authlevel,
+            currentUserId: req.session.userId,
+            bookings,
+            showArchive,
+            error: req.session.error || null,
+            success: req.session.success || null
+        });
+
+        // Clear session flash
+        req.session.error = null;
+        req.session.success = null;
+
+    } catch (e) {
+        console.error('Error fetching user bookings:', e);
+        res.status(500).send('Interner Serverfehler.');
     }
 });
 

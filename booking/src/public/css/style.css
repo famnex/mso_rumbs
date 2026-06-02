@@ -314,6 +314,10 @@ body {
     cursor: pointer;
     width: 42px;
     height: 42px;
+    min-width: 42px;
+    min-height: 42px;
+    flex-shrink: 0;
+    box-sizing: border-box;
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -336,6 +340,10 @@ body {
     justify-content: center;
     width: 42px;
     height: 42px;
+    min-width: 42px;
+    min-height: 42px;
+    flex-shrink: 0;
+    box-sizing: border-box;
     border-radius: 50%;
     color: var(--text-muted);
     background: var(--input-bg);

@@ -1,0 +1,155 @@
+<%- include('partials/header') %>
+
+<div class="my-bookings-container">
+    <!-- Header Hero Card -->
+    <div class="dashboard-hero card" style="margin-bottom: 24px;">
+        <div class="hero-overlay">
+            <span class="hero-tag">📋 Buchungsübersicht</span>
+            <h2>Willkommen in Ihrer persönlichen Belegungsverwaltung</h2>
+            <p>Sehen Sie all Ihre aktiven Reservierungen ein oder stöbern Sie in Ihrem vergangenen Buchungsarchiv. Sie können anstehende Buchungen hier auch direkt stornieren.</p>
+        </div>
+    </div>
+
+    <!-- Tab Navigation & Action Controls -->
+    <div class="bookings-tab-bar" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 15px; flex-wrap: wrap;">
+        <div class="tab-buttons" style="display: flex; gap: 8px; background: rgba(255, 255, 255, 0.05); padding: 5px; border-radius: 14px; border: 1px solid var(--border-color); backdrop-filter: blur(8px);">
+            <a href="/bookings/my-bookings" class="tab-btn <%= !showArchive ? 'active-tab' : '' %>" style="padding: 10px 20px; border-radius: 10px; font-weight: 700; font-size: 13.5px; text-decoration: none; display: flex; align-items: center; gap: 8px; transition: all 0.2s;">
+                📅 Aktive Buchungen
+            </a>
+            <a href="/bookings/my-bookings?archive=true" class="tab-btn <%= showArchive ? 'active-tab' : '' %>" style="padding: 10px 20px; border-radius: 10px; font-weight: 700; font-size: 13.5px; text-decoration: none; display: flex; align-items: center; gap: 8px; transition: all 0.2s;">
+                🗄️ Buchungsarchiv
+            </a>
+        </div>
+        
+        <a href="/bookings" class="btn-sso-login" style="margin: 0; padding: 12px 20px; border-radius: 14px; display: inline-flex; align-items: center; gap: 8px; font-weight: 700; font-size: 13.5px; text-decoration: none;">
+            <span>➕ Neue Reservierung vornehmen</span>
+        </a>
+    </div>
+
+    <!-- Bookings Table / List Card -->
+    <div class="card" style="padding: 24px; overflow-x: auto;">
+        <% if (bookings && bookings.length) { %>
+            <table class="zebra-table" style="width: 100%; border-collapse: collapse; text-align: left;">
+                <thead>
+                    <tr>
+                        <th style="padding: 16px; border-bottom: 2px solid var(--border-color); font-weight: 700; color: var(--text-muted);">🚪 Raum</th>
+                        <th style="padding: 16px; border-bottom: 2px solid var(--border-color); font-weight: 700; color: var(--text-muted);">📅 Datum / Typ</th>
+                        <th style="padding: 16px; border-bottom: 2px solid var(--border-color); font-weight: 700; color: var(--text-muted);">⏰ Stunde</th>
+                        <th style="padding: 16px; border-bottom: 2px solid var(--border-color); font-weight: 700; color: var(--text-muted);">📝 Zweck / Klasse</th>
+                        <th style="padding: 16px; border-bottom: 2px solid var(--border-color); font-weight: 700; color: var(--text-muted); text-align: right;">Aktion</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% bookings.forEach(booking => { %>
+                        <tr style="transition: background-color 0.2s; border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+                            <!-- Room info -->
+                            <td style="padding: 16px; font-weight: 700; color: var(--text-main);">
+                                <span style="display: inline-flex; align-items: center; gap: 8px;">
+                                    <span style="font-size: 18px;">🚪</span>
+                                    <%= booking.room_name %>
+                                </span>
+                            </td>
+                            
+                            <!-- Date info -->
+                            <td style="padding: 16px;">
+                                <% if (booking.date) { %>
+                                    <% 
+                                        const dateObj = new Date(booking.date);
+                                        const formattedDate = dateObj.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' });
+                                    %>
+                                    <span class="status-badge" style="background: rgba(59, 130, 246, 0.1); color: var(--primary); border: 1px solid rgba(59, 130, 246, 0.2); font-weight: 600;">
+                                        <%= formattedDate %>
+                                    </span>
+                                <% } else { %>
+                                    <!-- Recurring Timetabled entry -->
+                                    <% 
+                                        const weekDays = ['', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
+                                        const dayName = weekDays[booking.day_num] || `Tag ${booking.day_num}`;
+                                    %>
+                                    <span class="status-badge" style="background: rgba(245, 158, 11, 0.1); color: var(--warning); border: 1px solid rgba(245, 158, 11, 0.2); font-weight: 600;" title="Regulärer Stundenplaneintrag">
+                                        🔁 <%= dayName %> <%= booking.week_name ? `(${booking.week_name})` : '(Jede Woche)' %>
+                                    </span>
+                                <% } %>
+                            </td>
+                            
+                            <!-- Period / Time info -->
+                            <td style="padding: 16px;">
+                                <div style="font-weight: 600; color: var(--text-main);"><%= booking.period_name %></div>
+                                <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">
+                                    <%= booking.time_start.slice(0, 5) %> - <%= booking.time_end.slice(0, 5) %> Uhr
+                                </div>
+                            </td>
+                            
+                            <!-- Purpose / Notes -->
+                            <td style="padding: 16px;">
+                                <% if (booking.notes) { %>
+                                    <span style="font-style: italic; color: var(--text-main);">"<%= booking.notes %>"</span>
+                                <% } else { %>
+                                    <span style="color: var(--text-muted); font-size: 13px;">Keine Angabe</span>
+                                <% } %>
+                            </td>
+                            
+                            <!-- Actions -->
+                            <td style="padding: 16px; text-align: right;">
+                                <% if (!showArchive) { %>
+                                    <form action="/bookings/cancel" method="POST" onsubmit="return confirm('Möchten Sie diese Reservierung wirklich stornieren?');" style="margin: 0; display: inline-block;">
+                                        <input type="hidden" name="booking_id" value="<%= booking.booking_id %>">
+                                        <input type="hidden" name="redirect_to" value="/bookings/my-bookings">
+                                        <button type="submit" class="btn-danger-sm" style="padding: 8px 14px; font-size: 12.5px; font-weight: 700; border-radius: 10px; display: inline-flex; align-items: center; gap: 4px;">
+                                            🗑️ Stornieren
+                                        </button>
+                                    </form>
+                                <% } else { %>
+                                    <span class="status-badge" style="background: rgba(16, 185, 129, 0.1); color: var(--success); border: 1px solid rgba(16, 185, 129, 0.2); font-weight: 700; font-size: 12px; display: inline-block; padding: 4px 8px;">
+                                        ✓ Archiviert
+                                    </span>
+                                <% } %>
+                            </td>
+                        </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        <% } else { %>
+            <div style="text-align: center; padding: 60px 20px;">
+                <div style="font-size: 52px; margin-bottom: 20px;">📅</div>
+                <h3 style="font-size: 20px; font-weight: 700; color: var(--text-main); margin-bottom: 8px;">
+                    <%= showArchive ? 'Ihr Archiv ist leer' : 'Keine anstehenden Buchungen' %>
+                </h3>
+                <p style="color: var(--text-muted); max-width: 400px; margin: 0 auto 24px auto; font-size: 14px; line-height: 1.5;">
+                    <%= showArchive ? 'Es wurden noch keine Belegungen in der Vergangenheit abgeschlossen oder archiviert.' : 'Sie haben aktuell keine anstehenden Unterrichtsräume oder Medienslots reserviert.' %>
+                </p>
+                <% if (!showArchive) { %>
+                    <a href="/bookings" class="btn-sso-login" style="margin: 0; padding: 12px 24px; border-radius: 14px; display: inline-flex; align-items: center; gap: 8px; font-weight: 700; text-decoration: none;">
+                        <span>🚪 Belegungsplan öffnen</span>
+                    </a>
+                <% } %>
+            </div>
+        <% } %>
+    </div>
+</div>
+
+<!-- Inline CSS to support tabs and aesthetic states -->
+<style>
+    .tab-btn {
+        color: var(--text-muted);
+        background: transparent;
+    }
+    
+    .tab-btn:hover {
+        color: var(--text-main);
+        background: rgba(255, 255, 255, 0.03);
+    }
+    
+    .active-tab {
+        background: var(--card-bg) !important;
+        color: var(--primary) !important;
+        border: 1px solid var(--border-color);
+        box-shadow: 0 4px 12px var(--primary-glow);
+    }
+    
+    .zebra-table tbody tr:hover {
+        background: rgba(255, 255, 255, 0.02) !important;
+    }
+</style>
+
+<%- include('partials/footer') %>
