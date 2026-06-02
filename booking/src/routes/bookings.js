@@ -121,6 +121,19 @@ router.get('/bookings', requireLogin, async (req, res) => {
         const nextWeekDate = new Date(monday);
         nextWeekDate.setDate(monday.getDate() + 7);
 
+        // Fetch all holidays and construct a holiday map for the 5 week dates
+        const holidays = await dbQuery.all("SELECT * FROM holidays;");
+        const holidayMap = {};
+        for (const dateStr of weekDates) {
+            const targetTime = new Date(dateStr).getTime();
+            const matchingHoliday = holidays.find(h => {
+                const start = new Date(h.date_start).getTime();
+                const end = new Date(h.date_end).getTime();
+                return targetTime >= start && targetTime <= end;
+            });
+            holidayMap[dateStr] = matchingHoliday ? matchingHoliday.name : null;
+        }
+
         res.render('bookings', {
             title: 'Belegungsplan',
             schoolName,
@@ -139,6 +152,7 @@ router.get('/bookings', requireLogin, async (req, res) => {
             prevWeek: prevWeekDate.toISOString().split('T')[0],
             nextWeek: nextWeekDate.toISOString().split('T')[0],
             gridBookings,
+            holidayMap,
             loadBookingScript: true,
             error: req.session.error || null,
             success: req.session.success || null
@@ -163,6 +177,21 @@ router.post('/bookings/add', requireLogin, async (req, res) => {
     }
 
     try {
+        // Block single bookings on holidays
+        if (booking_type !== 'timetable') {
+            const holidays = await dbQuery.all("SELECT * FROM holidays;");
+            const targetTime = new Date(date).getTime();
+            const matchingHoliday = holidays.find(h => {
+                const start = new Date(h.date_start).getTime();
+                const end = new Date(h.date_end).getTime();
+                return targetTime >= start && targetTime <= end;
+            });
+            if (matchingHoliday) {
+                req.session.error = `An diesem Datum sind Ferien (${matchingHoliday.name})! Reservierungen sind nicht möglich.`;
+                return res.redirect(`/bookings?room_id=${room_id}&date=${date}`);
+            }
+        }
+
         if (booking_type === 'timetable' && req.session.authlevel === 1) {
             // Permanent timetable block
             const parts = date.split('-');

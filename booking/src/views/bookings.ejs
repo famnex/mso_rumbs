@@ -99,7 +99,16 @@
                             const timetable = gridBookings[timetableKey];
                         %>
                         
-                        <% if (booking) { %>
+                        <% if (typeof holidayMap !== 'undefined' && holidayMap && holidayMap[currentDate]) { %>
+                            <!-- Holiday Slot Block -->
+                            <td class="slot slot-holiday" style="background: rgba(16, 185, 129, 0.05); border: 1px dashed rgba(16, 185, 129, 0.25) !important; color: var(--success); text-align: center; vertical-align: middle; padding: 10px;">
+                                <div class="slot-content" style="justify-content: center; align-items: center; height: 100%;">
+                                    <span style="font-size: 16px; margin-bottom: 2px;">🏝️</span>
+                                    <div style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: var(--success);"><%= holidayMap[currentDate] %></div>
+                                    <div style="font-size: 10px; color: var(--text-muted); margin-top: 1px;">Schulfrei</div>
+                                </div>
+                            </td>
+                        <% } else if (booking) { %>
                             <!-- Dynamic Single Booking Cell -->
                             <% const isMine = booking.user_id === currentUserId; %>
                             <td class="slot booked <%= isMine ? 'slot-mine' : 'slot-staff' %> <%= authlevel === 1 ? 'clickable' : '' %>"
