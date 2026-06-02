@@ -32,52 +32,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 4000);
     });
 
-    // Global Header Kaskadierende Schnellwahl (Category -> Room)
-    const categorySelect = document.getElementById('header-category-select');
-    const roomSelect = document.getElementById('header-room-select');
-
-    if (categorySelect && roomSelect) {
-        // Initial sync of room selection with active query param
-        const urlParams = new URLSearchParams(window.location.search);
-        const activeRoomId = urlParams.get('room_id');
-        if (activeRoomId) {
-            roomSelect.value = activeRoomId;
-            // Also pre-select the category if the room option exists
-            const selectedOpt = roomSelect.querySelector(`option[value="${activeRoomId}"]`);
-            if (selectedOpt && selectedOpt.getAttribute('data-dept')) {
-                categorySelect.value = selectedOpt.getAttribute('data-dept');
-                filterHeaderRooms(selectedOpt.getAttribute('data-dept'));
-            }
-        }
-
-        categorySelect.addEventListener('change', (e) => {
-            const selectedDeptId = e.target.value;
-            filterHeaderRooms(selectedDeptId);
-            roomSelect.value = ""; // Reset room selection
-        });
-
-        roomSelect.addEventListener('change', (e) => {
-            const selectedRoomId = e.target.value;
-            if (selectedRoomId) {
-                window.location.href = `/bookings?room_id=${selectedRoomId}`;
-            }
-        });
-    }
-
-    function filterHeaderRooms(deptId) {
-        const options = roomSelect.querySelectorAll('option');
-        options.forEach(opt => {
-            if (!opt.value) return; // Skip placeholder "-- Raum wählen --"
-            const optDept = opt.getAttribute('data-dept');
-            if (!deptId || optDept === deptId) {
-                opt.style.display = '';
-                opt.disabled = false;
-            } else {
-                opt.style.display = 'none';
-                opt.disabled = true;
-            }
-        });
-    }
 
     // Calendar Page Kaskadierende Schnellwahl (Kategorie -> Raum)
     const calCategorySelect = document.getElementById('calendar-category-select');

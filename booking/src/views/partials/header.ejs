@@ -27,32 +27,6 @@
             
             <% if (typeof displayName !== 'undefined' && displayName) { %>
                 <nav class="main-nav">
-                    <!-- Cascading Category & Room Quick-Select -->
-                    <div class="header-selectors" style="display: flex; align-items: center; gap: 12px; margin-right: 20px; padding-right: 20px; border-right: 1px solid var(--border-color);">
-                        <div class="header-select-wrapper" style="display: flex; align-items: center; gap: 6px;">
-                            <span style="font-size: 12.5px; font-weight: 700; color: var(--text-muted);">Kategorie:</span>
-                            <select id="header-category-select" style="padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); font-size: 12.5px; font-weight: 600; cursor: pointer; outline: none; transition: border-color 0.2s;">
-                                <option value="">-- Alle --</option>
-                                <% if (typeof headerCategories !== 'undefined' && headerCategories && headerCategories.length) { %>
-                                    <% headerCategories.forEach(cat => { %>
-                                        <option value="<%= cat.department_id %>"><%= cat.name %></option>
-                                    <% }) %>
-                                <% } %>
-                            </select>
-                        </div>
-                        <div class="header-select-wrapper" style="display: flex; align-items: center; gap: 6px;">
-                            <span style="font-size: 12.5px; font-weight: 700; color: var(--text-muted);">Raum:</span>
-                            <select id="header-room-select" style="padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); font-size: 12.5px; font-weight: 600; cursor: pointer; outline: none; transition: border-color 0.2s;">
-                                <option value="">-- Raum wählen --</option>
-                                <% if (typeof headerRooms !== 'undefined' && headerRooms && headerRooms.length) { %>
-                                    <% headerRooms.forEach(rm => { %>
-                                        <option value="<%= rm.room_id %>" data-dept="<%= rm.department_id || '' %>"><%= rm.name %></option>
-                                    <% }) %>
-                                <% } %>
-                            </select>
-                        </div>
-                    </div>
-
                     <a href="/dashboard" class="nav-item-iconic" title="Dashboard">
                         <svg class="icon" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
                     </a>
@@ -71,14 +45,20 @@
                     <a href="/logout" class="btn-logout-iconic" title="Abmelden (Log-out)">
                         <svg class="icon" viewBox="0 0 24 24"><path d="m17 7-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
                     </a>
-                </nav>
-            <% } %>
 
-            <!-- Hardware-accelerated Theme Toggler -->
-            <button id="theme-toggle" class="theme-btn" aria-label="Farbschema umschalten">
-                <span class="sun-icon">☀️</span>
-                <span class="moon-icon">🌙</span>
-            </button>
+                    <!-- Hardware-accelerated Theme Toggler (Logged In) -->
+                    <button id="theme-toggle" class="theme-btn" aria-label="Farbschema umschalten">
+                        <span class="sun-icon">☀️</span>
+                        <span class="moon-icon">🌙</span>
+                    </button>
+                </nav>
+            <% } else { %>
+                <!-- Hardware-accelerated Theme Toggler (Logged Out) -->
+                <button id="theme-toggle" class="theme-btn" aria-label="Farbschema umschalten" style="margin-left: auto;">
+                    <span class="sun-icon">☀️</span>
+                    <span class="moon-icon">🌙</span>
+                </button>
+            <% } %>
         </header>
         
         <main class="content-area">
