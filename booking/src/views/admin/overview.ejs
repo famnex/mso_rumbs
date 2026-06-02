@@ -1,0 +1,177 @@
+<%- include('../partials/header') %>
+
+<div class="admin-overview-container">
+    <div class="calendar-header-bar card" style="margin-bottom: 24px;">
+        <div class="calendar-info">
+            <div class="calendar-breadcrumb">
+                <a href="/">Dashboard</a> &raquo; <strong>Systemsteuerung</strong>
+            </div>
+            <h2>🛠️ Systemsteuerung &amp; Administrator-Zentrale</h2>
+        </div>
+    </div>
+
+    <!-- Quick Stats Grid -->
+    <div class="admin-overview-grid">
+        <div class="stat-card card">
+            <span class="stat-icon">🚪</span>
+            <div class="stat-details">
+                <h4>Räume</h4>
+                <div class="stat-number"><%= stats.rooms %></div>
+            </div>
+        </div>
+        <div class="stat-card card">
+            <span class="stat-icon">⏰</span>
+            <div class="stat-details">
+                <h4>Stunden</h4>
+                <div class="stat-number"><%= stats.periods %></div>
+            </div>
+        </div>
+        <div class="stat-card card">
+            <span class="stat-icon">👥</span>
+            <div class="stat-details">
+                <h4>Benutzer</h4>
+                <div class="stat-number"><%= stats.users %></div>
+            </div>
+        </div>
+        <div class="stat-card card">
+            <span class="stat-icon">📅</span>
+            <div class="stat-details">
+                <h4>Belegungen</h4>
+                <div class="stat-number"><%= stats.bookings %></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Navigation Links as Premium 6-Card Grid -->
+    <div class="rooms-grid" style="grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 24px; margin-top: 10px;">
+        <!-- Rooms Portal -->
+        <div class="room-card card clickable" onclick="location.href='/admin/rooms'">
+            <div class="room-card-header">
+                <span class="room-icon">🚪</span>
+                <div>
+                    <h4 style="font-size: 17px;">1. Räume verwalten</h4>
+                    <span class="room-location">Ressourcen &amp; Sperren</span>
+                </div>
+            </div>
+            <p class="room-notes" style="min-height: 50px;">Räume anlegen, Details pflegen, Sperrzustände einrichten und Raumverantwortliche zuweisen.</p>
+            <div class="room-card-footer">
+                <span class="status-badge status-open">✓ Aktiv</span>
+                <span class="btn-arrow-link">Öffnen &rarr;</span>
+            </div>
+        </div>
+
+        <!-- Periods Portal -->
+        <div class="room-card card clickable" onclick="location.href='/admin/periods'">
+            <div class="room-card-header">
+                <span class="room-icon">⏰</span>
+                <div>
+                    <h4 style="font-size: 17px;">2. Unterrichtszeiten</h4>
+                    <span class="room-location">Stundenraster &amp; Sperren</span>
+                </div>
+            </div>
+            <p class="room-notes" style="min-height: 50px;">Unterrichtszeiten (1. - 6. Stunde etc.) anlegen, Start-/Endzeiten festlegen und für Lehrkräfte sperren/freigeben.</p>
+            <div class="room-card-footer">
+                <span class="status-badge status-open">✓ Aktiv</span>
+                <span class="btn-arrow-link">Öffnen &rarr;</span>
+            </div>
+        </div>
+
+        <!-- Timetable Portal -->
+        <div class="room-card card clickable" onclick="location.href='/admin/timetables'">
+            <div class="room-card-header">
+                <span class="room-icon">📅</span>
+                <div>
+                    <h4 style="font-size: 17px;">3. Stundenpläne</h4>
+                    <span class="room-location">Dauerbuchungen &amp; Regelunterricht</span>
+                </div>
+            </div>
+            <p class="room-notes" style="min-height: 50px;">Festen, wiederkehrenden Regelunterricht für Klassen eintragen und A/B-Wochenpläne konfigurieren.</p>
+            <div class="room-card-footer">
+                <span class="status-badge status-open" style="background: var(--primary-glow); color: var(--primary);">✓ Planer</span>
+                <span class="btn-arrow-link">Öffnen &rarr;</span>
+            </div>
+        </div>
+
+        <!-- Weeks Term Portal -->
+        <div class="room-card card clickable" onclick="location.href='/admin/weeks'">
+            <div class="room-card-header">
+                <span class="room-icon">🏫</span>
+                <div>
+                    <h4 style="font-size: 17px;">4. Kalenderwochen</h4>
+                    <span class="room-location">Gerade/Ungerade (A/B-Wochen)</span>
+                </div>
+            </div>
+            <p class="room-notes" style="min-height: 50px;">Schuljahr planen und Kalenderwochen einzeln per Dropdown der A-Woche (ungerade) oder B-Woche (gerade) zuordnen.</p>
+            <div class="room-card-footer">
+                <span class="status-badge status-open" style="background: var(--warning-bg); color: var(--warning);">✓ Kalender</span>
+                <span class="btn-arrow-link">Öffnen &rarr;</span>
+            </div>
+        </div>
+
+        <!-- Holidays Portal -->
+        <div class="room-card card clickable" onclick="location.href='/admin/holidays'">
+            <div class="room-card-header">
+                <span class="room-icon">🏖️</span>
+                <div>
+                    <h4 style="font-size: 17px;">5. Schulferien</h4>
+                    <span class="room-location">Urlaubszeiten &amp; Sperrblöcke</span>
+                </div>
+            </div>
+            <p class="room-notes" style="min-height: 50px;">Schulferien, Feiertage und schulfreie Tage anlegen. In diesen Zeiträumen sind Lehrerbuchungen blockiert.</p>
+            <div class="room-card-footer">
+                <span class="status-badge status-open" style="background: var(--danger-bg); color: var(--danger-hover);">✓ Ferien</span>
+                <span class="btn-arrow-link">Öffnen &rarr;</span>
+            </div>
+        </div>
+
+        <!-- Categories Portal -->
+        <div class="room-card card clickable" onclick="location.href='/admin/departments'">
+            <div class="room-card-header">
+                <span class="room-icon">🏷️</span>
+                <div>
+                    <h4 style="font-size: 17px;">6. Kategorien / Fachbereiche</h4>
+                    <span class="room-location">Klassifizierung &amp; Struktur</span>
+                </div>
+            </div>
+            <p class="room-notes" style="min-height: 50px;">Kategorien und Fachbereiche (Informatik, Sport, Biologie) zur Strukturierung von Räumen und Benutzern verwalten.</p>
+            <div class="room-card-footer">
+                <span class="status-badge status-open">✓ Struktur</span>
+                <span class="btn-arrow-link">Öffnen &rarr;</span>
+            </div>
+        </div>
+
+        <!-- Users Portal -->
+        <div class="room-card card clickable" onclick="location.href='/admin/users'">
+            <div class="room-card-header">
+                <span class="room-icon">👥</span>
+                <div>
+                    <h4 style="font-size: 17px;">7. Benutzerverwaltung</h4>
+                    <span class="room-location">Konten &amp; Rechte</span>
+                </div>
+            </div>
+            <p class="room-notes" style="min-height: 50px;">Benutzerkonten für Lehrer und Administratoren anlegen, bearbeiten, sperren oder Kennwörter zurücksetzen.</p>
+            <div class="room-card-footer">
+                <span class="status-badge status-open" style="background: var(--primary-glow); color: var(--primary);">✓ Benutzer</span>
+                <span class="btn-arrow-link">Öffnen &rarr;</span>
+            </div>
+        </div>
+
+        <!-- SSO / JWT Config Portal -->
+        <div class="room-card card clickable" onclick="location.href='/admin/config'">
+            <div class="room-card-header">
+                <span class="room-icon">⚙️</span>
+                <div>
+                    <h4 style="font-size: 17px;">8. SSO &amp; JWT Konfiguration</h4>
+                    <span class="room-location">Portal &amp; Schnittstellen</span>
+                </div>
+            </div>
+            <p class="room-notes" style="min-height: 50px;">Single Sign-On Anbindung konfigurieren, Shared Secrets, JIT-Registrierung und Weiterleitungsziele pflegen.</p>
+            <div class="room-card-footer">
+                <span class="status-badge status-open" style="background: var(--warning-bg); color: var(--warning);">✓ Schnittstelle</span>
+                <span class="btn-arrow-link">Öffnen &rarr;</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<%- include('../partials/footer') %>

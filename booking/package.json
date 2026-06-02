@@ -1,0 +1,28 @@
+{
+  "name": "classroombookings",
+  "version": "3.0.0",
+  "description": "State-of-the-art Room Booking System for Schools",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "keywords": [
+    "booking",
+    "room",
+    "school",
+    "sqlite",
+    "jwt",
+    "sso"
+  ],
+  "author": "Antigravity",
+  "license": "AGPL-3.0",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "ejs": "^3.1.10",
+    "express": "^4.21.2",
+    "express-session": "^1.18.1",
+    "jsonwebtoken": "^9.0.2",
+    "sqlite3": "^5.1.7"
+  }
+}

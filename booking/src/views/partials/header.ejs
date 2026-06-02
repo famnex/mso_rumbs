@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %> | <%= schoolName %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    
+    <!-- Inline CSS to support immediate theme rendering (prevents flash of light theme in dark mode) -->
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        })();
+    </script>
+</head>
+<body>
+    <div class="outer">
+        <header class="main-header">
+            <div class="brand">
+                <a href="/" class="brand-link">
+                    <span class="brand-icon">🏫</span>
+                    <span class="brand-text"><%= schoolName %></span>
+                </a>
+            </div>
+            
+            <% if (typeof displayName !== 'undefined' && displayName) { %>
+                <nav class="main-nav">
+                    <!-- Cascading Category & Room Quick-Select -->
+                    <div class="header-selectors" style="display: flex; align-items: center; gap: 12px; margin-right: 20px; padding-right: 20px; border-right: 1px solid var(--border-color);">
+                        <div class="header-select-wrapper" style="display: flex; align-items: center; gap: 6px;">
+                            <span style="font-size: 12.5px; font-weight: 700; color: var(--text-muted);">Kategorie:</span>
+                            <select id="header-category-select" style="padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); font-size: 12.5px; font-weight: 600; cursor: pointer; outline: none; transition: border-color 0.2s;">
+                                <option value="">-- Alle --</option>
+                                <% if (typeof headerCategories !== 'undefined' && headerCategories && headerCategories.length) { %>
+                                    <% headerCategories.forEach(cat => { %>
+                                        <option value="<%= cat.department_id %>"><%= cat.name %></option>
+                                    <% }) %>
+                                <% } %>
+                            </select>
+                        </div>
+                        <div class="header-select-wrapper" style="display: flex; align-items: center; gap: 6px;">
+                            <span style="font-size: 12.5px; font-weight: 700; color: var(--text-muted);">Raum:</span>
+                            <select id="header-room-select" style="padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); font-size: 12.5px; font-weight: 600; cursor: pointer; outline: none; transition: border-color 0.2s;">
+                                <option value="">-- Raum wählen --</option>
+                                <% if (typeof headerRooms !== 'undefined' && headerRooms && headerRooms.length) { %>
+                                    <% headerRooms.forEach(rm => { %>
+                                        <option value="<%= rm.room_id %>" data-dept="<%= rm.department_id || '' %>"><%= rm.name %></option>
+                                    <% }) %>
+                                <% } %>
+                            </select>
+                        </div>
+                    </div>
+
+                    <a href="/dashboard" class="nav-item-iconic" title="Dashboard">
+                        <svg class="icon" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+                    </a>
+                    
+                    <% if (typeof authlevel !== 'undefined' && authlevel === 1) { %>
+                        <a href="/admin" class="nav-item-iconic admin-iconic" title="Systemsteuerung">
+                            <svg class="icon" viewBox="0 0 24 24"><path d="m19.43 12.98.07-.38c0-.13.01-.26.01-.39 0-.13-.01-.26-.01-.38l.07-.38 2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65.07.38c-.01.13-.02.26-.02.38 0 .13.01.26.02.38l-.07.38-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"/></svg>
+                        </a>
+                    <% } %>
+                    
+                    <div class="user-control-iconic" title="Angemeldet als: <%= displayName %>">
+                        <svg class="icon" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                        <span class="user-greeting-compact"><%= displayName %></span>
+                    </div>
+
+                    <a href="/logout" class="btn-logout-iconic" title="Abmelden (Log-out)">
+                        <svg class="icon" viewBox="0 0 24 24"><path d="m17 7-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
+                    </a>
+                </nav>
+            <% } %>
+
+            <!-- Hardware-accelerated Theme Toggler -->
+            <button id="theme-toggle" class="theme-btn" aria-label="Farbschema umschalten">
+                <span class="sun-icon">☀️</span>
+                <span class="moon-icon">🌙</span>
+            </button>
+        </header>
+        
+        <main class="content-area">
+            <% if (typeof error !== 'undefined' && error) { %>
+                <div class="alert alert-error">
+                    <span class="alert-icon">⚠️</span>
+                    <span class="alert-message"><%= error %></span>
+                </div>
+            <% } %>
+            
+            <% if (typeof success !== 'undefined' && success) { %>
+                <div class="alert alert-success">
+                    <span class="alert-icon">✅</span>
+                    <span class="alert-message"><%= success %></span>
+                </div>
+            <% } %>

@@ -1,0 +1,942 @@
+const express = require('express');
+const router = express.Router();
+const { dbQuery } = require('../db');
+const bcrypt = require('bcryptjs');
+const authRouter = require('./auth');
+const fs = require('fs');
+const path = require('path');
+
+// Middleware to ensure user is admin
+function requireAdmin(req, res, next) {
+    if (!req.session.userId || req.session.authlevel !== 1) {
+        req.session.error = 'Zugriff verweigert. Nur Administratoren haben Zugriff auf die Systemsteuerung.';
+        return res.redirect('/dashboard');
+    }
+    next();
+}
+
+// GET /admin (Admin Control Panel Overview)
+router.get('/admin', requireAdmin, async (req, res) => {
+    try {
+        const roomsCount = await dbQuery.get("SELECT COUNT(*) as count FROM rooms;");
+        const periodsCount = await dbQuery.get("SELECT COUNT(*) as count FROM periods;");
+        const usersCount = await dbQuery.get("SELECT COUNT(*) as count FROM users;");
+        const bookingsCount = await dbQuery.get("SELECT COUNT(*) as count FROM bookings WHERE cancelled = 0;");
+
+        const schoolNameSetting = await dbQuery.get("SELECT value FROM settings WHERE name='name' LIMIT 1;");
+        const schoolName = schoolNameSetting ? schoolNameSetting.value : 'Raumbelegung MSO';
+
+        res.render('admin/overview', {
+            title: 'Systemsteuerung',
+            schoolName,
+            displayName: req.session.displayName,
+            stats: {
+                rooms: roomsCount.count,
+                periods: periodsCount.count,
+                users: usersCount.count,
+                bookings: bookingsCount.count
+            },
+            error: req.session.error || null,
+            success: req.session.success || null
+        });
+        req.session.error = null;
+        req.session.success = null;
+
+    } catch (e) {
+        console.error('Admin overview load error:', e);
+        res.status(500).send('Interner Serverfehler.');
+    }
+});
+
+// GET /admin/rooms (Rooms Management List)
+router.get('/admin/rooms', requireAdmin, async (req, res) => {
+    try {
+        const rooms = await dbQuery.all(`
+            SELECT r.*, d.name as department_name 
+            FROM rooms r 
+            LEFT JOIN departments d ON r.department_id = d.department_id 
+            ORDER BY r.name ASC;
+        `);
+        const departments = await dbQuery.all("SELECT * FROM departments ORDER BY name ASC;");
+        const schoolNameSetting = await dbQuery.get("SELECT value FROM settings WHERE name='name' LIMIT 1;");
+        const schoolName = schoolNameSetting ? schoolNameSetting.value : 'Raumbelegung MSO';
+
+        res.render('admin/rooms', {
+            title: 'Räume verwalten',
+            schoolName,
+            displayName: req.session.displayName,
+            rooms,
+            departments,
+            error: req.session.error || null,
+            success: req.session.success || null
+        });
+        req.session.error = null;
+        req.session.success = null;
+    } catch (e) {
+        console.error('Admin rooms load error:', e);
+        res.status(500).send('Interner Serverfehler.');
+    }
+});
+
+// POST /admin/rooms/add
+router.post('/admin/rooms/add', requireAdmin, async (req, res) => {
+    const { name, department_id, notes, bookable } = req.body;
+    const isBookable = bookable === '1' ? 1 : 0;
+
+    if (!name) {
+        req.session.error = 'Der Raumname ist erforderlich.';
+        return res.redirect('/admin/rooms');
+    }
+
+    try {
+        const deptId = department_id ? parseInt(department_id) : null;
+        await dbQuery.run(
+            "INSERT INTO rooms (name, department_id, notes, bookable, icon) VALUES (?, ?, ?, ?, 'computer')",
+            [name, deptId, notes || '', isBookable]
+        );
+        req.session.success = `Raum '${name}' erfolgreich angelegt!`;
+        res.redirect('/admin/rooms');
+    } catch (e) {
+        console.error('Admin add room error:', e);
+        req.session.error = 'Fehler beim Anlegen des Raumes.';
+        res.redirect('/admin/rooms');
+    }
+});
+
+// POST /admin/rooms/delete
+router.post('/admin/rooms/delete', requireAdmin, async (req, res) => {
+    const { room_id } = req.body;
+
+    if (!room_id) {
+        req.session.error = 'Ungültige Raumnummer.';
+        return res.redirect('/admin/rooms');
+    }
+
+    try {
+        await dbQuery.run("DELETE FROM rooms WHERE room_id = ?", [room_id]);
+        // Also cancel future bookings in this room
+        await dbQuery.run("UPDATE bookings SET cancelled = 1 WHERE room_id = ?", [room_id]);
+
+        req.session.success = 'Raum erfolgreich gelöscht!';
+        res.redirect('/admin/rooms');
+    } catch (e) {
+        console.error('Admin delete room error:', e);
+        req.session.error = 'Fehler beim Löschen des Raumes.';
+        res.redirect('/admin/rooms');
+    }
+});
+
+// GET /admin/periods (Stunden verwalten)
+router.get('/admin/periods', requireAdmin, async (req, res) => {
+    try {
+        const periods = await dbQuery.all("SELECT * FROM periods ORDER BY time_start ASC;");
+        const schoolNameSetting = await dbQuery.get("SELECT value FROM settings WHERE name='name' LIMIT 1;");
+        const schoolName = schoolNameSetting ? schoolNameSetting.value : 'Raumbelegung MSO';
+
+        res.render('admin/periods', {
+            title: 'Stunden verwalten',
+            schoolName,
+            displayName: req.session.displayName,
+            periods,
+            error: req.session.error || null,
+            success: req.session.success || null
+        });
+        req.session.error = null;
+        req.session.success = null;
+    } catch (e) {
+        console.error('Admin periods load error:', e);
+        res.status(500).send('Interner Serverfehler.');
+    }
+});
+
+// POST /admin/periods/add
+router.post('/admin/periods/add', requireAdmin, async (req, res) => {
+    const { name, time_start, time_end, bookable } = req.body;
+    const isBookable = bookable === '1' ? 1 : 0;
+
+    if (!name || !time_start || !time_end) {
+        req.session.error = 'Alle Felder sind erforderlich.';
+        return res.redirect('/admin/periods');
+    }
+
+    try {
+        await dbQuery.run(
+            "INSERT INTO periods (name, time_start, time_end, days, bookable) VALUES (?, ?, ?, 62, ?)",
+            [name, time_start, time_end, isBookable]
+        );
+        req.session.success = `Stunde '${name}' erfolgreich angelegt!`;
+        res.redirect('/admin/periods');
+    } catch (e) {
+        console.error('Admin add period error:', e);
+        req.session.error = 'Fehler beim Anlegen der Stunde.';
+        res.redirect('/admin/periods');
+    }
+});
+
+// GET /admin/users (Benutzer verwalten)
+router.get('/admin/users', requireAdmin, async (req, res) => {
+    try {
+        const users = await dbQuery.all("SELECT * FROM users ORDER BY username ASC;");
+        const schoolNameSetting = await dbQuery.get("SELECT value FROM settings WHERE name='name' LIMIT 1;");
+        const schoolName = schoolNameSetting ? schoolNameSetting.value : 'Raumbelegung MSO';
+
+        res.render('admin/users', {
+            title: 'Benutzer verwalten',
+            schoolName,
+            displayName: req.session.displayName,
+            users,
+            error: req.session.error || null,
+            success: req.session.success || null
+        });
+        req.session.error = null;
+        req.session.success = null;
+    } catch (e) {
+        console.error('Admin users load error:', e);
+        res.status(500).send('Interner Serverfehler.');
+    }
+});
+
+// POST /admin/users/add
+router.post('/admin/users/add', requireAdmin, async (req, res) => {
+    const { username, firstname, lastname, email, password, authlevel } = req.body;
+
+    if (!username || !password || !authlevel) {
+        req.session.error = 'Username, Passwort und Rolle sind erforderlich.';
+        return res.redirect('/admin/users');
+    }
+
+    try {
+        const existing = await dbQuery.get("SELECT * FROM users WHERE username = ?", [username]);
+        if (existing) {
+            req.session.error = 'Dieser Benutzername ist bereits vergeben.';
+            return res.redirect('/admin/users');
+        }
+
+        const salt = await bcrypt.genSalt(10);
+        const passwordHash = await bcrypt.hash(password, salt);
+        const displayname = `${firstname} ${lastname}`.trim() || username;
+
+        await dbQuery.run(
+            `INSERT INTO users (username, firstname, lastname, email, displayname, password, authlevel, enabled, created) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)`,
+            [username, firstname || '', lastname || '', email || '', displayname, passwordHash, parseInt(authlevel), new Date().toISOString()]
+        );
+
+        req.session.success = `Benutzer '${username}' erfolgreich angelegt!`;
+        res.redirect('/admin/users');
+
+    } catch (e) {
+        console.error('Admin add user error:', e);
+        req.session.error = 'Fehler beim Anlegen des Benutzers.';
+        res.redirect('/admin/users');
+    }
+});
+
+// POST /admin/users/toggle
+router.post('/admin/users/toggle', requireAdmin, async (req, res) => {
+    const { user_id, enabled } = req.body;
+
+    if (!user_id) {
+        req.session.error = 'Ungültige Benutzer-ID.';
+        return res.redirect('/admin/users');
+    }
+
+    try {
+        const targetUser = await dbQuery.get("SELECT * FROM users WHERE user_id = ?", [user_id]);
+        if (targetUser.username === 'admin' && parseInt(enabled) === 0) {
+            req.session.error = 'Der Haupt-Administrator darf nicht deaktiviert werden!';
+            return res.redirect('/admin/users');
+        }
+
+        await dbQuery.run("UPDATE users SET enabled = ? WHERE user_id = ?", [parseInt(enabled), user_id]);
+        req.session.success = 'Benutzerstatus erfolgreich geändert!';
+        res.redirect('/admin/users');
+    } catch (e) {
+        console.error('Admin toggle user status error:', e);
+        req.session.error = 'Fehler beim Ändern des Benutzerstatus.';
+        res.redirect('/admin/users');
+    }
+});
+
+// ==========================================
+// 5. HOLIDAYS MANAGEMENT (SCHULFERIEN)
+// ==========================================
+
+// GET /admin/holidays
+router.get('/admin/holidays', requireAdmin, async (req, res) => {
+    try {
+        const holidays = await dbQuery.all("SELECT * FROM holidays ORDER BY date_start ASC;");
+        const schoolNameSetting = await dbQuery.get("SELECT value FROM settings WHERE name='name' LIMIT 1;");
+        const schoolName = schoolNameSetting ? schoolNameSetting.value : 'Raumbelegung MSO';
+
+        res.render('admin/holidays', {
+            title: 'Schulferien verwalten',
+            schoolName,
+            displayName: req.session.displayName,
+            holidays,
+            error: req.session.error || null,
+            success: req.session.success || null
+        });
+        req.session.error = null;
+        req.session.success = null;
+    } catch (e) {
+        console.error('Admin holidays load error:', e);
+        res.status(500).send('Interner Serverfehler.');
+    }
+});
+
+// POST /admin/holidays/add
+router.post('/admin/holidays/add', requireAdmin, async (req, res) => {
+    const { name, date_start, date_end } = req.body;
+    if (!name || !date_start || !date_end) {
+        req.session.error = 'Alle Felder sind erforderlich.';
+        return res.redirect('/admin/holidays');
+    }
+    try {
+        await dbQuery.run("INSERT INTO holidays (name, date_start, date_end) VALUES (?, ?, ?)", [name, date_start, date_end]);
+        req.session.success = `Ferienzeitraum '${name}' erfolgreich angelegt!`;
+        res.redirect('/admin/holidays');
+    } catch (e) {
+        console.error('Admin add holiday error:', e);
+        req.session.error = 'Fehler beim Anlegen des Ferienzeitraums.';
+        res.redirect('/admin/holidays');
+    }
+});
+
+// POST /admin/holidays/delete
+router.post('/admin/holidays/delete', requireAdmin, async (req, res) => {
+    const { holiday_id } = req.body;
+    if (!holiday_id) {
+        req.session.error = 'Ungültiger Ferienzeitraum.';
+        return res.redirect('/admin/holidays');
+    }
+    try {
+        await dbQuery.run("DELETE FROM holidays WHERE holiday_id = ?", [holiday_id]);
+        req.session.success = 'Ferienzeitraum erfolgreich gelöscht!';
+        res.redirect('/admin/holidays');
+    } catch (e) {
+        console.error('Admin delete holiday error:', e);
+        req.session.error = 'Fehler beim Löschen des Ferienzeitraums.';
+        res.redirect('/admin/holidays');
+    }
+});
+
+// ==========================================
+// 6. CATEGORIES / DEPARTMENTS MANAGEMENT
+// ==========================================
+
+// GET /admin/departments
+router.get('/admin/departments', requireAdmin, async (req, res) => {
+    try {
+        const departments = await dbQuery.all("SELECT * FROM departments ORDER BY name ASC;");
+        const schoolNameSetting = await dbQuery.get("SELECT value FROM settings WHERE name='name' LIMIT 1;");
+        const schoolName = schoolNameSetting ? schoolNameSetting.value : 'Raumbelegung MSO';
+
+        res.render('admin/departments', {
+            title: 'Kategorien verwalten',
+            schoolName,
+            displayName: req.session.displayName,
+            departments,
+            error: req.session.error || null,
+            success: req.session.success || null
+        });
+        req.session.error = null;
+        req.session.success = null;
+    } catch (e) {
+        console.error('Admin departments load error:', e);
+        res.status(500).send('Interner Serverfehler.');
+    }
+});
+
+// POST /admin/departments/add
+router.post('/admin/departments/add', requireAdmin, async (req, res) => {
+    const { name, description, icon } = req.body;
+    if (!name) {
+        req.session.error = 'Der Name der Kategorie ist erforderlich.';
+        return res.redirect('/admin/departments');
+    }
+    try {
+        await dbQuery.run("INSERT INTO departments (name, description, icon) VALUES (?, ?, ?)", [name, description || '', icon || 'general']);
+        req.session.success = `Kategorie '${name}' erfolgreich angelegt!`;
+        res.redirect('/admin/departments');
+    } catch (e) {
+        console.error('Admin add department error:', e);
+        req.session.error = 'Fehler beim Anlegen der Kategorie.';
+        res.redirect('/admin/departments');
+    }
+});
+
+// POST /admin/departments/delete
+router.post('/admin/departments/delete', requireAdmin, async (req, res) => {
+    const { department_id } = req.body;
+    if (!department_id) {
+        req.session.error = 'Ungültige Kategorie.';
+        return res.redirect('/admin/departments');
+    }
+    try {
+        await dbQuery.run("DELETE FROM departments WHERE department_id = ?", [department_id]);
+        req.session.success = 'Kategorie erfolgreich gelöscht!';
+        res.redirect('/admin/departments');
+    } catch (e) {
+        console.error('Admin delete department error:', e);
+        req.session.error = 'Fehler beim Löschen der Kategorie.';
+        res.redirect('/admin/departments');
+    }
+});
+
+// ==========================================
+// 7. TIMETABLES / RECURRING SCHEDULING
+// ==========================================
+
+// GET /admin/timetables
+router.get('/admin/timetables', requireAdmin, async (req, res) => {
+    try {
+        const timetables = await dbQuery.all(
+            `SELECT b.*, r.name as room_name, p.name as period_name, w.name as week_name, w.bgcol as week_bg, w.fgcol as week_fg 
+             FROM bookings b 
+             JOIN rooms r ON b.room_id = r.room_id 
+             JOIN periods p ON b.period_id = p.period_id 
+             LEFT JOIN weeks w ON b.week_id = w.week_id 
+             WHERE b.date IS NULL AND b.cancelled = 0 
+             ORDER BY r.name ASC, b.day_num ASC, p.time_start ASC;`
+        );
+        const rooms = await dbQuery.all(`
+            SELECT r.*, d.name as department_name 
+            FROM rooms r 
+            LEFT JOIN departments d ON r.department_id = d.department_id 
+            ORDER BY r.name ASC;
+        `);
+        const periods = await dbQuery.all("SELECT * FROM periods ORDER BY time_start ASC;");
+        const weeks = await dbQuery.all("SELECT * FROM weeks ORDER BY week_id ASC;");
+
+        const schoolNameSetting = await dbQuery.get("SELECT value FROM settings WHERE name='name' LIMIT 1;");
+        const schoolName = schoolNameSetting ? schoolNameSetting.value : 'Raumbelegung MSO';
+
+        res.render('admin/timetables', {
+            title: 'Stundenpläne verwalten',
+            schoolName,
+            displayName: req.session.displayName,
+            timetables,
+            rooms,
+            periods,
+            weeks,
+            error: req.session.error || null,
+            success: req.session.success || null
+        });
+        req.session.error = null;
+        req.session.success = null;
+    } catch (e) {
+        console.error('Admin timetables load error:', e);
+        res.status(500).send('Interner Serverfehler.');
+    }
+});
+
+// POST /admin/timetables/add
+router.post('/admin/timetables/add', requireAdmin, async (req, res) => {
+    const { room_id, period_id, day_num, week_id, notes } = req.body;
+    if (!room_id || !period_id || !day_num || !notes) {
+        req.session.error = 'Unvollständige Stundenplandaten.';
+        return res.redirect('/admin/timetables');
+    }
+    try {
+        const parsedWeekId = week_id ? parseInt(week_id) : null;
+        await dbQuery.run(
+            `INSERT INTO bookings (day_num, week_id, room_id, period_id, user_id, date, notes, cancelled) 
+             VALUES (?, ?, ?, ?, ?, NULL, ?, 0)`,
+            [parseInt(day_num), parsedWeekId, parseInt(room_id), parseInt(period_id), req.session.userId, notes]
+        );
+        req.session.success = 'Wiederkehrende Belegung (Dauerbuchung) erfolgreich angelegt!';
+        res.redirect('/admin/timetables');
+    } catch (e) {
+        console.error('Admin add timetable error:', e);
+        req.session.error = 'Fehler beim Anlegen der Dauerbuchung.';
+        res.redirect('/admin/timetables');
+    }
+});
+
+// POST /admin/timetables/delete
+router.post('/admin/timetables/delete', requireAdmin, async (req, res) => {
+    const { booking_id, redirect_to } = req.body;
+    if (!booking_id) {
+        req.session.error = 'Ungültige Dauerbuchung.';
+        return res.redirect(redirect_to || '/admin/timetables');
+    }
+    try {
+        await dbQuery.run("DELETE FROM bookings WHERE booking_id = ?", [booking_id]);
+        req.session.success = 'Dauerbelegung erfolgreich gelöscht!';
+        res.redirect(redirect_to || '/admin/timetables');
+    } catch (e) {
+        console.error('Admin delete timetable error:', e);
+        req.session.error = 'Fehler beim Löschen der Dauerbelegung.';
+        res.redirect(redirect_to || '/admin/timetables');
+    }
+});
+
+// ==========================================
+// 8. WEEKS & ACADEMIC YEAR MANAGEMENT
+// ==========================================
+
+// GET /admin/weeks
+router.get('/admin/weeks', requireAdmin, async (req, res) => {
+    try {
+        const academicyear = await dbQuery.get("SELECT * FROM academicyears LIMIT 1;");
+        const weeks = await dbQuery.all("SELECT * FROM weeks ORDER BY week_id ASC;");
+        
+        // Calculate all mondays in academic year
+        const mondays = [];
+        if (academicyear) {
+            let curr = new Date(academicyear.date_start);
+            // shift to first Monday
+            while (curr.getDay() !== 1) {
+                curr.setDate(curr.getDate() + 1);
+            }
+            const end = new Date(academicyear.date_end);
+            while (curr <= end) {
+                mondays.push(curr.toISOString().split('T')[0]);
+                curr.setDate(curr.getDate() + 7);
+            }
+        }
+
+        // Fetch all mapped dates
+        const mappedRows = await dbQuery.all("SELECT * FROM weekdates;");
+        const mappedWeeks = {};
+        for (const row of mappedRows) {
+            mappedWeeks[row.date] = row.week_id;
+        }
+
+        const schoolNameSetting = await dbQuery.get("SELECT value FROM settings WHERE name='name' LIMIT 1;");
+        const schoolName = schoolNameSetting ? schoolNameSetting.value : 'Raumbelegung MSO';
+
+        res.render('admin/weeks', {
+            title: 'Wochen und Jahresplan',
+            schoolName,
+            displayName: req.session.displayName,
+            academicyear,
+            weeks,
+            mondays,
+            mappedWeeks,
+            error: req.session.error || null,
+            success: req.session.success || null
+        });
+        req.session.error = null;
+        req.session.success = null;
+    } catch (e) {
+        console.error('Admin weeks load error:', e);
+        res.status(500).send('Interner Serverfehler.');
+    }
+});
+
+// POST /admin/weeks/academicyear
+router.post('/admin/weeks/academicyear', requireAdmin, async (req, res) => {
+    const { date_start, date_end } = req.body;
+    if (!date_start || !date_end) {
+        req.session.error = 'Grenzdaten erforderlich.';
+        return res.redirect('/admin/weeks');
+    }
+    try {
+        await dbQuery.run("DELETE FROM academicyears;");
+        await dbQuery.run("INSERT INTO academicyears (date_start, date_end) VALUES (?, ?)", [date_start, date_end]);
+        req.session.success = 'Schuljahresgrenzen erfolgreich aktualisiert!';
+        res.redirect('/admin/weeks');
+    } catch (e) {
+        console.error('Admin save academicyear error:', e);
+        req.session.error = 'Fehler beim Speichern des Jahresplans.';
+        res.redirect('/admin/weeks');
+    }
+});
+
+// POST /admin/weeks/add
+router.post('/admin/weeks/add', requireAdmin, async (req, res) => {
+    const { name } = req.body;
+    if (!name) {
+        req.session.error = 'Name des Wochentyps erforderlich.';
+        return res.redirect('/admin/weeks');
+    }
+    try {
+        // Find next ID
+        const nextIdRow = await dbQuery.get("SELECT MAX(week_id) as max FROM weeks;");
+        const nextId = nextIdRow && nextIdRow.max ? nextIdRow.max + 1 : 1;
+        
+        // Define high-end color templates for rotation weeks
+        const colors = [
+            { bg: '2563EB', fg: 'FFFFFF' }, // Blue
+            { bg: '10B981', fg: 'FFFFFF' }, // Green
+            { bg: 'F59E0B', fg: 'FFFFFF' }, // Amber
+            { bg: 'EF4444', fg: 'FFFFFF' }  // Red
+        ];
+        const selectedColor = colors[(nextId - 1) % colors.length];
+
+        await dbQuery.run(
+            "INSERT INTO weeks (week_id, name, fgcol, bgcol, icon) VALUES (?, ?, ?, ?, 'calendar')", 
+            [nextId, name, selectedColor.fg, selectedColor.bg]
+        );
+        req.session.success = `Wochentyp '${name}' erfolgreich angelegt!`;
+        res.redirect('/admin/weeks');
+    } catch (e) {
+        console.error('Admin add week type error:', e);
+        req.session.error = 'Fehler beim Anlegen des Wochentyps.';
+        res.redirect('/admin/weeks');
+    }
+});
+
+// POST /admin/weeks/assign (Instant mapping select menu)
+router.post('/admin/weeks/assign', requireAdmin, async (req, res) => {
+    const { date, week_id } = req.body;
+    if (!date) {
+        req.session.error = 'Datum erforderlich.';
+        return res.redirect('/admin/weeks');
+    }
+    try {
+        // delete current assignment
+        await dbQuery.run("DELETE FROM weekdates WHERE date = ?", [date]);
+        
+        if (week_id) {
+            await dbQuery.run("INSERT INTO weekdates (week_id, date) VALUES (?, ?)", [parseInt(week_id), date]);
+        }
+        
+        req.session.success = `Wochenzuordnung für Montag (${new Date(date).toLocaleDateString('de-DE')}) erfolgreich aktualisiert!`;
+        res.redirect('/admin/weeks');
+    } catch (e) {
+        console.error('Admin assign week error:', e);
+        req.session.error = 'Fehler beim Speichern der Wochenzuordnung.';
+        res.redirect('/admin/weeks');
+    }
+});
+
+// ==========================================
+// CRUD EDIT & DELETE ENDPOINTS
+// ==========================================
+
+// POST /admin/rooms/edit
+router.post('/admin/rooms/edit', requireAdmin, async (req, res) => {
+    const { room_id, name, department_id, notes, bookable } = req.body;
+    const isBookable = bookable === '1' ? 1 : 0;
+    if (!room_id || !name) {
+        req.session.error = 'Raum-ID und Name sind erforderlich.';
+        return res.redirect('/admin/rooms');
+    }
+    try {
+        const deptId = department_id ? parseInt(department_id) : null;
+        await dbQuery.run(
+            "UPDATE rooms SET name = ?, department_id = ?, notes = ?, bookable = ? WHERE room_id = ?",
+            [name, deptId, notes || '', isBookable, parseInt(room_id)]
+        );
+        req.session.success = `Raum '${name}' erfolgreich aktualisiert!`;
+        res.redirect('/admin/rooms');
+    } catch (e) {
+        console.error('Admin edit room error:', e);
+        req.session.error = 'Fehler beim Aktualisieren des Raumes.';
+        res.redirect('/admin/rooms');
+    }
+});
+
+// POST /admin/periods/edit
+router.post('/admin/periods/edit', requireAdmin, async (req, res) => {
+    const { period_id, name, time_start, time_end, bookable } = req.body;
+    const isBookable = bookable === '1' ? 1 : 0;
+    if (!period_id || !name || !time_start || !time_end) {
+        req.session.error = 'Alle Felder sind erforderlich.';
+        return res.redirect('/admin/periods');
+    }
+    try {
+        await dbQuery.run(
+            "UPDATE periods SET name = ?, time_start = ?, time_end = ?, bookable = ? WHERE period_id = ?",
+            [name, time_start, time_end, isBookable, parseInt(period_id)]
+        );
+        req.session.success = `Stunde '${name}' erfolgreich aktualisiert!`;
+        res.redirect('/admin/periods');
+    } catch (e) {
+        console.error('Admin edit period error:', e);
+        req.session.error = 'Fehler beim Aktualisieren der Stunde.';
+        res.redirect('/admin/periods');
+    }
+});
+
+// POST /admin/periods/delete
+router.post('/admin/periods/delete', requireAdmin, async (req, res) => {
+    const { period_id } = req.body;
+    if (!period_id) {
+        req.session.error = 'Ungültige Stunde.';
+        return res.redirect('/admin/periods');
+    }
+    try {
+        const period = await dbQuery.get("SELECT name FROM periods WHERE period_id = ?", [period_id]);
+        const periodName = period ? period.name : '';
+        await dbQuery.run("DELETE FROM periods WHERE period_id = ?", [parseInt(period_id)]);
+        // Cancel future bookings in this period
+        await dbQuery.run("UPDATE bookings SET cancelled = 1 WHERE period_id = ?", [parseInt(period_id)]);
+        req.session.success = `Unterrichtsstunde '${periodName}' und zugehörige Buchungen erfolgreich gelöscht!`;
+        res.redirect('/admin/periods');
+    } catch (e) {
+        console.error('Admin delete period error:', e);
+        req.session.error = 'Fehler beim Löschen der Stunde.';
+        res.redirect('/admin/periods');
+    }
+});
+
+// POST /admin/departments/edit
+router.post('/admin/departments/edit', requireAdmin, async (req, res) => {
+    const { department_id, name, description, icon } = req.body;
+    if (!department_id || !name) {
+        req.session.error = 'Kategorie-ID und Name sind erforderlich.';
+        return res.redirect('/admin/departments');
+    }
+    try {
+        await dbQuery.run(
+            "UPDATE departments SET name = ?, description = ?, icon = ? WHERE department_id = ?",
+            [name, description || '', icon || 'general', parseInt(department_id)]
+        );
+        req.session.success = `Kategorie '${name}' erfolgreich aktualisiert!`;
+        res.redirect('/admin/departments');
+    } catch (e) {
+        console.error('Admin edit department error:', e);
+        req.session.error = 'Fehler beim Aktualisieren der Kategorie.';
+        res.redirect('/admin/departments');
+    }
+});
+
+// POST /admin/holidays/edit
+router.post('/admin/holidays/edit', requireAdmin, async (req, res) => {
+    const { holiday_id, name, date_start, date_end } = req.body;
+    if (!holiday_id || !name || !date_start || !date_end) {
+        req.session.error = 'Alle Felder sind erforderlich.';
+        return res.redirect('/admin/holidays');
+    }
+    try {
+        await dbQuery.run(
+            "UPDATE holidays SET name = ?, date_start = ?, date_end = ? WHERE holiday_id = ?",
+            [name, date_start, date_end, parseInt(holiday_id)]
+        );
+        req.session.success = `Ferienzeitraum '${name}' erfolgreich aktualisiert!`;
+        res.redirect('/admin/holidays');
+    } catch (e) {
+        console.error('Admin edit holiday error:', e);
+        req.session.error = 'Fehler beim Aktualisieren des Ferienzeitraums.';
+        res.redirect('/admin/holidays');
+    }
+});
+
+// POST /admin/users/edit
+router.post('/admin/users/edit', requireAdmin, async (req, res) => {
+    const { user_id, username, firstname, lastname, email, password, authlevel } = req.body;
+    if (!user_id || !username || !authlevel) {
+        req.session.error = 'Benutzer-ID, Username und Berechtigungsstufe sind erforderlich.';
+        return res.redirect('/admin/users');
+    }
+    try {
+        const parsedAuth = parseInt(authlevel);
+        const displayname = `${firstname} ${lastname}`.trim() || username;
+        
+        if (password && password.trim().length > 0) {
+            const salt = await bcrypt.genSalt(10);
+            const passwordHash = await bcrypt.hash(password, salt);
+            await dbQuery.run(
+                `UPDATE users SET username = ?, firstname = ?, lastname = ?, email = ?, displayname = ?, password = ?, authlevel = ? 
+                 WHERE user_id = ?`,
+                [username, firstname || '', lastname || '', email || '', displayname, passwordHash, parsedAuth, parseInt(user_id)]
+            );
+        } else {
+            await dbQuery.run(
+                `UPDATE users SET username = ?, firstname = ?, lastname = ?, email = ?, displayname = ?, authlevel = ? 
+                 WHERE user_id = ?`,
+                [username, firstname || '', lastname || '', email || '', displayname, parsedAuth, parseInt(user_id)]
+            );
+        }
+        req.session.success = `Benutzerkonto '${username}' erfolgreich aktualisiert!`;
+        res.redirect('/admin/users');
+    } catch (e) {
+        console.error('Admin edit user error:', e);
+        req.session.error = 'Fehler beim Aktualisieren des Benutzers.';
+        res.redirect('/admin/users');
+    }
+});
+
+// POST /admin/users/delete
+router.post('/admin/users/delete', requireAdmin, async (req, res) => {
+    const { user_id } = req.body;
+    if (!user_id) {
+        req.session.error = 'Ungültige Benutzer-ID.';
+        return res.redirect('/admin/users');
+    }
+    try {
+        const targetUser = await dbQuery.get("SELECT * FROM users WHERE user_id = ?", [user_id]);
+        if (targetUser && targetUser.username === 'admin') {
+            req.session.error = 'Der Haupt-Administrator darf nicht gelöscht werden!';
+            return res.redirect('/admin/users');
+        }
+        const username = targetUser ? targetUser.username : '';
+        await dbQuery.run("DELETE FROM users WHERE user_id = ?", [parseInt(user_id)]);
+        req.session.success = `Benutzerkonto '${username}' erfolgreich gelöscht!`;
+        res.redirect('/admin/users');
+    } catch (e) {
+        console.error('Admin delete user error:', e);
+        req.session.error = 'Fehler beim Löschen des Benutzers.';
+        res.redirect('/admin/users');
+    }
+});
+
+// POST /admin/timetables/edit
+router.post('/admin/timetables/edit', requireAdmin, async (req, res) => {
+    const { booking_id, room_id, period_id, day_num, week_id, notes, redirect_to } = req.body;
+    if (!booking_id || !room_id || !period_id || !day_num || !notes) {
+        req.session.error = 'Unvollständige Dauerbelegungsdaten.';
+        return res.redirect(redirect_to || '/admin/timetables');
+    }
+    try {
+        const parsedWeekId = week_id ? parseInt(week_id) : null;
+        await dbQuery.run(
+            `UPDATE bookings SET room_id = ?, period_id = ?, day_num = ?, week_id = ?, notes = ? 
+             WHERE booking_id = ?`,
+            [parseInt(room_id), parseInt(period_id), parseInt(day_num), parsedWeekId, notes, parseInt(booking_id)]
+        );
+        req.session.success = 'Stundenplaneintrag erfolgreich aktualisiert!';
+        res.redirect(redirect_to || '/admin/timetables');
+    } catch (e) {
+        console.error('Admin edit timetable error:', e);
+        req.session.error = 'Fehler beim Aktualisieren der Dauerbelegung.';
+        res.redirect(redirect_to || '/admin/timetables');
+    }
+});
+
+// POST /admin/weeks/edit
+router.post('/admin/weeks/edit', requireAdmin, async (req, res) => {
+    const { week_id, name } = req.body;
+    if (!week_id || !name) {
+        req.session.error = 'Name des Wochentyps und ID sind erforderlich.';
+        return res.redirect('/admin/weeks');
+    }
+    try {
+        await dbQuery.run("UPDATE weeks SET name = ? WHERE week_id = ?", [name, parseInt(week_id)]);
+        req.session.success = `Wochentyp successfully updated to '${name}'!`;
+        res.redirect('/admin/weeks');
+    } catch (e) {
+        console.error('Admin edit week error:', e);
+        req.session.error = 'Fehler beim Aktualisieren des Wochentyps.';
+        res.redirect('/admin/weeks');
+    }
+});
+
+// POST /admin/weeks/delete
+router.post('/admin/weeks/delete', requireAdmin, async (req, res) => {
+    const { week_id } = req.body;
+    if (!week_id) {
+        req.session.error = 'Ungültiger Wochentyp.';
+        return res.redirect('/admin/weeks');
+    }
+    try {
+        await dbQuery.run("DELETE FROM weeks WHERE week_id = ?", [parseInt(week_id)]);
+        // Also remove assignments
+        await dbQuery.run("DELETE FROM weekdates WHERE week_id = ?", [parseInt(week_id)]);
+        req.session.success = 'Wochentyp erfolgreich gelöscht!';
+        res.redirect('/admin/weeks');
+    } catch (e) {
+        console.error('Admin delete week error:', e);
+        req.session.error = 'Fehler beim Löschen des Wochentyps.';
+        res.redirect('/admin/weeks');
+    }
+});
+
+// Helper to sync local/config.php file with new JWT SSO settings
+function saveConfigToPhp(config) {
+    const configPath = path.join(__dirname, '../../local/config.php');
+    if (fs.existsSync(configPath)) {
+        try {
+            let content = fs.readFileSync(configPath, 'utf8');
+            
+            // Replace enabled state
+            content = content.replace(/'enabled'\s*=>\s*(true|false)/, `'enabled' => ${config.enabled}`);
+            
+            // Replace secret key
+            content = content.replace(/'secret'\s*=>\s*'([^']*)'/, `'secret' => '${config.secret}'`);
+            
+            // Replace parameter_name
+            content = content.replace(/'parameter_name'\s*=>\s*'([^']*)'/, `'parameter_name' => '${config.parameter_name}'`);
+            
+            // Replace sso_url
+            content = content.replace(/'sso_url'\s*=>\s*'([^']*)'/, `'sso_url' => '${config.sso_url}'`);
+            
+            // Replace auto_create_user state
+            content = content.replace(/'auto_create_user'\s*=>\s*(true|false)/, `'auto_create_user' => ${config.auto_create_user}`);
+            
+            // Replace default_authlevel role
+            content = content.replace(/'default_authlevel'\s*=>\s*(\d+)/, `'default_authlevel' => ${config.default_authlevel}`);
+
+            // Replace logout_redirect_url state
+            content = content.replace(/'logout_redirect_url'\s*=>\s*'([^']*)'/, `'logout_redirect_url' => '${config.logout_redirect_url}'`);
+            
+            fs.writeFileSync(configPath, content, 'utf8');
+            console.log('JWT SSO config successfully written and synchronized in local/config.php');
+        } catch (err) {
+            console.error('Error writing config.php:', err);
+            throw err;
+        }
+    }
+}
+
+// GET /admin/config (SSO / JWT Configuration Dashboard)
+router.get('/admin/config', requireAdmin, async (req, res) => {
+    try {
+        const schoolNameSetting = await dbQuery.get("SELECT value FROM settings WHERE name='name' LIMIT 1;");
+        const schoolName = schoolNameSetting ? schoolNameSetting.value : 'Raumbelegung MSO';
+
+        // Load active configuration in-memory
+        const jwtConfig = authRouter.jwtConfig;
+
+        res.render('admin/config', {
+            title: 'SSO & JWT Konfiguration',
+            schoolName,
+            displayName: req.session.displayName,
+            jwtConfig,
+            error: req.session.error || null,
+            success: req.session.success || null
+        });
+        req.session.error = null;
+        req.session.success = null;
+    } catch (e) {
+        console.error('Admin config load error:', e);
+        res.status(500).send('Interner Serverfehler.');
+    }
+});
+
+// POST /admin/config (Save JWT SSO parameters)
+router.post('/admin/config', requireAdmin, async (req, res) => {
+    const { enabled, secret, sso_url, parameter_name, auto_create_user, default_authlevel, logout_redirect_url } = req.body;
+
+    if (!secret || !sso_url) {
+        req.session.error = 'JWT Secret und SSO Portal Login-URL sind erforderlich.';
+        return res.redirect('/admin/config');
+    }
+
+    try {
+        const config = {
+            enabled: enabled === '1',
+            secret: secret.trim(),
+            sso_url: sso_url.trim(),
+            parameter_name: (parameter_name || 'token').trim(),
+            auto_create_user: auto_create_user === '1',
+            default_authlevel: parseInt(default_authlevel) || 2,
+            logout_redirect_url: (logout_redirect_url || '').trim()
+        };
+
+        // 1. Write back to config.php file
+        saveConfigToPhp(config);
+
+        // 2. Synchronize active in-memory auth router config objects
+        authRouter.jwtConfig.enabled = config.enabled;
+        authRouter.jwtConfig.secret = config.secret;
+        authRouter.jwtConfig.sso_url = config.sso_url;
+        authRouter.jwtConfig.parameter_name = config.parameter_name;
+        authRouter.jwtConfig.auto_create_user = config.auto_create_user;
+        authRouter.jwtConfig.default_authlevel = config.default_authlevel;
+        authRouter.jwtConfig.logout_redirect_url = config.logout_redirect_url;
+
+        req.session.success = 'SSO & JWT Konfiguration erfolgreich gespeichert und synchronisiert!';
+        res.redirect('/admin/config');
+    } catch (e) {
+        console.error('Admin save config error:', e);
+        req.session.error = 'Fehler beim Speichern der Konfiguration.';
+        res.redirect('/admin/config');
+    }
+});
+
+module.exports = router;

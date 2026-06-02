@@ -1,0 +1,218 @@
+<%- include('../partials/header') %>
+
+<div class="calendar-header-bar card" style="margin-bottom: 24px;">
+    <div class="calendar-info">
+        <div class="calendar-breadcrumb">
+            <a href="/">Dashboard</a> &raquo; <a href="/admin">Systemsteuerung</a> &raquo; <strong>Stundenpläne verwalten</strong>
+        </div>
+        <h2>📅 Regelunterricht &amp; Stundenpläne verwalten</h2>
+    </div>
+    <div class="calendar-controls">
+        <a href="/admin" class="btn-nav-week" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none;">
+            <span>🛠️ Systemsteuerung</span>
+        </a>
+    </div>
+</div>
+
+<div class="card" style="margin-top: 24px;">
+    <div class="card-header-with-action">
+        <div>
+            <h3>📅 Dauerbelegungen im Regelunterricht</h3>
+            <p class="card-desc">Hier sehen Sie alle festen, stundenplanmäßigen Sperrungen und wiederkehrenden Unterrichtsstunden.</p>
+        </div>
+        <button class="btn-action-trigger" onclick="openModal('add-timetable-modal')">
+            <span>➕ Neue Dauerbelegung eintragen</span>
+        </button>
+    </div>
+
+    <% if (timetables && timetables.length) { %>
+        <div class="table-responsive">
+            <table class="admin-list-table">
+                <thead>
+                    <tr>
+                        <th>Raum</th>
+                        <th>Stunde / Zeit</th>
+                        <th>Wochentag</th>
+                        <th>Wochentyp</th>
+                        <th>Belegung / Klasse</th>
+                        <th style="text-align: right;">Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% timetables.forEach(t => { %>
+                        <% 
+                            const daysMap = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+                            const dayName = daysMap[t.day_num] || 'Unbekannt';
+                        %>
+                        <tr>
+                            <td><strong><%= t.room_name %></strong></td>
+                            <td>
+                                <span class="status-badge status-open" style="background: var(--primary-glow); color: var(--primary);">
+                                    <%= t.period_name %>
+                                </span>
+                            </td>
+                            <td><strong><%= dayName %></strong></td>
+                            <td>
+                                <% if (t.week_id) { %>
+                                    <span class="status-badge" style="background: #<%= t.week_bg %>; color: #<%= t.week_fg %>; font-size: 11px; padding: 4px 10px; border: 1px solid var(--border-color);">
+                                        <%= t.week_name.split(' ')[0] %>
+                                    </span>
+                                <% } else { %>
+                                    <span class="status-badge status-open" style="background: var(--border-color); color: var(--text-main);">
+                                        Jede Woche
+                                    </span>
+                                <% } %>
+                            </td>
+                            <td><strong><%= t.notes %></strong></td>
+                            <td style="text-align: right; white-space: nowrap;">
+                                <button class="btn-edit-sm" onclick="openEditTimetableModal('<%= t.booking_id %>', '<%= t.room_id %>', '<%= t.period_id %>', '<%= t.day_num %>', '<%= t.week_id || '' %>', '<%= t.notes %>')">
+                                    ✏️ Bearbeiten
+                                </button>
+                                <form action="/admin/timetables/delete" method="POST" style="display:inline;" onsubmit="return confirm('Möchten Sie diesen Stundenplaneintrag wirklich löschen?');">
+                                    <input type="hidden" name="booking_id" value="<%= t.booking_id %>">
+                                    <button type="submit" class="btn-danger-sm">Löschen 🗑️</button>
+                                </form>
+                            </td>
+                        </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        </div>
+    <% } else { %>
+        <div class="empty-state">
+            <p>Aktuell sind keine wiederkehrenden Regelunterrichte oder Dauerbelegungen eingetragen.</p>
+        </div>
+    <% } %>
+</div>
+
+<!-- Add Timetable Entry Modal -->
+<div id="add-timetable-modal" class="modal-overlay hidden" onclick="closeModal('add-timetable-modal')">
+    <div class="modal-card card" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h3>🆕 Dauerbelegung eintragen</h3>
+            <button class="btn-close-modal" onclick="closeModal('add-timetable-modal')">&times;</button>
+        </div>
+        <p class="modal-desc">Fügen Sie einen wiederkehrenden Unterricht oder eine feste Sperre in den Regelstundenplan eines Raumes ein.</p>
+        
+        <form action="/admin/timetables/add" method="POST" class="modern-form compact">
+            <div class="form-group">
+                <label for="room_id">Raum</label>
+                <select name="room_id" id="room_id" required style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); font-weight: 600; cursor: pointer; outline: none;">
+                    <option value="">-- Raum wählen --</option>
+                    <% rooms.forEach(r => { %>
+                        <option value="<%= r.room_id %>"><%= r.name %> (<%= r.department_name || 'Keine Kategorie' %>)</option>
+                    <% }) %>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="period_id">Unterrichtsstunde</label>
+                <select name="period_id" id="period_id" required style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); font-weight: 600; cursor: pointer; outline: none;">
+                    <option value="">-- Stunde wählen --</option>
+                    <% periods.forEach(p => { %>
+                        <option value="<%= p.period_id %>"><%= p.name %> (<%= p.time_start.slice(0, 5) %> - <%= p.time_end.slice(0, 5) %>)</option>
+                    <% }) %>
+                </select>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="day_num">Wochentag</label>
+                    <select name="day_num" id="day_num" required style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); font-weight: 600; cursor: pointer; outline: none;">
+                        <option value="1">Montag</option>
+                        <option value="2">Dienstag</option>
+                        <option value="3">Mittwoch</option>
+                        <option value="4">Donnerstag</option>
+                        <option value="5">Freitag</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="week_id">Wochentyp (Rotation)</label>
+                    <select name="week_id" id="week_id" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); font-weight: 600; cursor: pointer; outline: none;">
+                        <option value="">Jede Woche (Wöchentlich)</option>
+                        <% weeks.forEach(w => { %>
+                            <option value="<%= w.week_id %>"><%= w.name %></option>
+                        <% }) %>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="notes">Zweck / Klasse (z. B. 10a Mathe, Blockiert)</label>
+                <input type="text" name="notes" id="notes" required placeholder="z. B. 10a Informatik, Wartung">
+            </div>
+
+            <button type="submit" class="btn-primary-block">
+                <span>📅 Dauerbuchung anlegen</span>
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Timetable Entry Modal -->
+<div id="edit-timetable-modal" class="modal-overlay hidden" onclick="closeModal('edit-timetable-modal')">
+    <div class="modal-card card" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h3>✏️ Dauerbelegung bearbeiten</h3>
+            <button class="btn-close-modal" onclick="closeModal('edit-timetable-modal')">&times;</button>
+        </div>
+        <p class="modal-desc">Passen Sie die Wochentag-, Raum-, Stunden- oder Zweckdetails dieses Stundenplaneintrags an.</p>
+        
+        <form action="/admin/timetables/edit" method="POST" class="modern-form compact">
+            <input type="hidden" name="booking_id" id="edit-tt-id">
+            
+            <div class="form-group">
+                <label for="edit-tt-room">Raum</label>
+                <select name="room_id" id="edit-tt-room" required style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); font-weight: 600; cursor: pointer; outline: none;">
+                    <% rooms.forEach(r => { %>
+                        <option value="<%= r.room_id %>"><%= r.name %> (<%= r.department_name || 'Keine Kategorie' %>)</option>
+                    <% }) %>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="edit-tt-period">Unterrichtsstunde</label>
+                <select name="period_id" id="edit-tt-period" required style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); font-weight: 600; cursor: pointer; outline: none;">
+                    <% periods.forEach(p => { %>
+                        <option value="<%= p.period_id %>"><%= p.name %> (<%= p.time_start.slice(0, 5) %> - <%= p.time_end.slice(0, 5) %>)</option>
+                    <% }) %>
+                </select>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="edit-tt-day">Wochentag</label>
+                    <select name="day_num" id="edit-tt-day" required style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); font-weight: 600; cursor: pointer; outline: none;">
+                        <option value="1">Montag</option>
+                        <option value="2">Dienstag</option>
+                        <option value="3">Mittwoch</option>
+                        <option value="4">Donnerstag</option>
+                        <option value="5">Freitag</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="edit-tt-week">Wochentyp (Rotation)</label>
+                    <select name="week_id" id="edit-tt-week" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); font-weight: 600; cursor: pointer; outline: none;">
+                        <option value="">Jede Woche (Wöchentlich)</option>
+                        <% weeks.forEach(w => { %>
+                            <option value="<%= w.week_id %>"><%= w.name %></option>
+                        <% }) %>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="edit-tt-notes">Zweck / Klasse</label>
+                <input type="text" name="notes" id="edit-tt-notes" required>
+            </div>
+
+            <button type="submit" class="btn-primary-block">
+                <span>💾 Änderungen speichern</span>
+            </button>
+        </form>
+    </div>
+</div>
+
+<%- include('../partials/footer') %>

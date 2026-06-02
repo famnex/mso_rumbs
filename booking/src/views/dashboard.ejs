@@ -1,0 +1,135 @@
+<%- include('partials/header') %>
+
+<div class="dashboard-grid">
+    <!-- Main Welcome & Quick Actions Card -->
+    <div class="dashboard-hero card">
+        <div class="hero-overlay">
+            <span class="hero-tag">✨ Willkommen zurück</span>
+            <h2>Erleben Sie Raumplanung in Lichtgeschwindigkeit.</h2>
+            <p>Wählen Sie unten einen Raum aus, um die Belegung einzusehen, oder nutzen Sie den Schnellbucher rechts für eine blitzschnelle Reservierung.</p>
+        </div>
+    </div>
+
+    <!-- Quick Booking Assistant -->
+    <div class="quick-booking-card card">
+        <h3>⚡ Schnellbuchungs-Assistent</h3>
+        <p class="card-desc">Mit nur 2 Klicks einen Raum direkt für eine Stunde reservieren.</p>
+        
+        <form action="/bookings/add" method="POST" class="modern-form compact">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="quick-room">Raum</label>
+                    <select name="room_id" id="quick-room" required>
+                        <option value="">-- Raum wählen --</option>
+                        <% if (rooms && rooms.length) { %>
+                            <% rooms.forEach(room => { %>
+                                <option value="<%= room.room_id %>"><%= room.name %> (<%= room.location %>)</option>
+                            <% }) %>
+                        <% } %>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="quick-date">Datum</label>
+                    <input type="date" name="date" id="quick-date" value="<%= new Date().toISOString().split('T')[0] %>" required>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="quick-period">Stunde</label>
+                    <select name="period_id" id="quick-period" required>
+                        <option value="">-- Stunde wählen --</option>
+                        <% if (periods && periods.length) { %>
+                            <% periods.forEach(p => { %>
+                                <option value="<%= p.period_id %>"><%= p.name %> (<%= p.time_start.slice(0, 5) %> - <%= p.time_end.slice(0, 5) %>)</option>
+                            <% }) %>
+                        <% } %>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="quick-notes">Notiz / Zweck</label>
+                    <input type="text" name="notes" id="quick-notes" placeholder="z. B. Klausur, Freiarbeit">
+                </div>
+            </div>
+
+            <button type="submit" class="btn-success-block">
+                <span>⚡ Jetzt reservieren</span>
+            </button>
+        </form>
+    </div>
+</div>
+
+<div class="dashboard-sections">
+    <!-- Rooms list -->
+    <div class="rooms-section">
+        <h3 class="section-title">🚪 Buchbare Räume</h3>
+        <div class="rooms-grid">
+            <% if (rooms && rooms.length) { %>
+                <% rooms.forEach(room => { %>
+                    <div class="room-card card clickable" onclick="location.href='/bookings?room_id=<%= room.room_id %>'">
+                        <div class="room-card-header">
+                            <span class="room-icon">
+                                <% if (room.icon === 'computer') { %> 🖥️ <% } else if (room.icon === 'science') { %> 🔬 <% } else { %> 🏟️ <% } %>
+                            </span>
+                            <div>
+                                <h4><%= room.name %></h4>
+                                <span class="room-location"><%= room.location %></span>
+                            </div>
+                        </div>
+                        <% if (room.notes) { %>
+                            <p class="room-notes"><%= room.notes %></p>
+                        <% } %>
+                        <div class="room-card-footer">
+                            <span class="status-badge status-open">✓ Buchbar</span>
+                            <span class="btn-arrow-link">Belegungsplan ansehen →</span>
+                        </div>
+                    </div>
+                <% }) %>
+            <% } else { %>
+                <div class="card empty-state">
+                    <p>Keine buchbaren Räume im System angelegt.</p>
+                </div>
+            <% } %>
+        </div>
+    </div>
+
+    <!-- Active Reservations by Current User -->
+    <div class="my-bookings-section">
+        <h3 class="section-title">📅 Meine anstehenden Buchungen</h3>
+        <div class="my-bookings-list">
+            <% if (myBookings && myBookings.length) { %>
+                <% myBookings.forEach(booking => { %>
+                    <div class="booking-row card">
+                        <div class="booking-details">
+                            <span class="booking-date-badge">
+                                📅 <%= new Date(booking.date).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' }) %>
+                            </span>
+                            <div class="booking-meta">
+                                <strong><%= booking.room_name %></strong> &bull; <%= booking.period_name %> (<%= booking.time_start.slice(0, 5) %> - <%= booking.time_end.slice(0, 5) %>)
+                                <% if (booking.notes) { %>
+                                    <span class="booking-note-tag">📝 <%= booking.notes %></span>
+                                <% } %>
+                            </div>
+                        </div>
+                        <form action="/bookings/cancel" method="POST" onsubmit="return confirm('Möchten Sie diese Buchung wirklich stornieren?');">
+                            <input type="hidden" name="booking_id" value="<%= booking.booking_id %>">
+                            <input type="hidden" name="room_id" value="<%= booking.room_id %>">
+                            <input type="hidden" name="date" value="<%= booking.date %>">
+                            <button type="submit" class="btn-cancel-icon" title="Stornieren">
+                                🗑️
+                            </button>
+                        </form>
+                    </div>
+                <% }) %>
+            <% } else { %>
+                <div class="card empty-state text-center">
+                    <p>Sie haben aktuell keine anstehenden Belegungen reserviert.</p>
+                </div>
+            <% } %>
+        </div>
+    </div>
+</div>
+
+<%- include('partials/footer') %>

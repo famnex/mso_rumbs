@@ -1,0 +1,144 @@
+<%- include('../partials/header') %>
+
+<div class="calendar-header-bar card" style="margin-bottom: 24px;">
+    <div class="calendar-info">
+        <div class="calendar-breadcrumb">
+            <a href="/">Dashboard</a> &raquo; <a href="/admin">Systemsteuerung</a> &raquo; <strong>Kategorien verwalten</strong>
+        </div>
+        <h2>🏷️ Kategorien &amp; Fachbereiche verwalten</h2>
+    </div>
+    <div class="calendar-controls">
+        <a href="/admin" class="btn-nav-week" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none;">
+            <span>🛠️ Systemsteuerung</span>
+        </a>
+    </div>
+</div>
+
+<div class="card" style="margin-top: 24px;">
+    <div class="card-header-with-action">
+        <div>
+            <h3>🏷️ Angelegte Fachbereiche</h3>
+            <p class="card-desc">Klassifizieren Sie Räume und Medien für den Schnellzugriff im globalen Header.</p>
+        </div>
+        <button class="btn-action-trigger" onclick="openModal('add-department-modal')">
+            <span>➕ Neue Kategorie erstellen</span>
+        </button>
+    </div>
+
+    <% if (departments && departments.length) { %>
+        <div class="table-responsive">
+            <table class="admin-list-table">
+                <thead>
+                    <tr>
+                        <th>Symbol</th>
+                        <th>Kategorie-Name</th>
+                        <th>Beschreibung</th>
+                        <th style="text-align: right;">Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% departments.forEach(d => { %>
+                        <tr>
+                            <td style="font-size: 22px; width: 60px;">
+                                <% if (d.icon === 'computer') { %> 🖥️ <% } else if (d.icon === 'science') { %> 🔬 <% } else if (d.icon === 'sport') { %> 🏟️ <% } else { %> 🏷️ <% } %>
+                            </td>
+                            <td><strong><%= d.name %></strong></td>
+                            <td style="color: var(--text-muted); font-size: 13px;"><%= d.description || 'Keine Beschreibung' %></td>
+                            <td style="text-align: right; white-space: nowrap;">
+                                <button class="btn-edit-sm" onclick="openEditDepartmentModal('<%= d.department_id %>', '<%= d.name %>', '<%= d.description || '' %>', '<%= d.icon || '' %>')">
+                                    ✏️ Bearbeiten
+                                </button>
+                                <form action="/admin/departments/delete" method="POST" style="display:inline;" onsubmit="return confirm('Möchten Sie diesen Fachbereich wirklich löschen?');">
+                                    <input type="hidden" name="department_id" value="<%= d.department_id %>">
+                                    <button type="submit" class="btn-danger-sm">Löschen 🗑️</button>
+                                </form>
+                            </td>
+                        </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        </div>
+    <% } else { %>
+        <div class="empty-state">
+            <p>Aktuell sind keine Fachbereiche oder Kategorien im System angelegt.</p>
+        </div>
+    <% } %>
+</div>
+
+<!-- Add Department Modal -->
+<div id="add-department-modal" class="modal-overlay hidden" onclick="closeModal('add-department-modal')">
+    <div class="modal-card card" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h3>🆕 Kategorie hinzufügen</h3>
+            <button class="btn-close-modal" onclick="closeModal('add-department-modal')">&times;</button>
+        </div>
+        <p class="modal-desc">Erstellen Sie einen neuen Fachbereich zur besseren Klassifizierung von Räumen.</p>
+        
+        <form action="/admin/departments/add" method="POST" class="modern-form compact">
+            <div class="form-group">
+                <label for="name">Kategorie-Name</label>
+                <input type="text" name="name" id="name" required placeholder="z. B. Fremdsprachen, Naturwissenschaften">
+            </div>
+            
+            <div class="form-group">
+                <label for="description">Beschreibung</label>
+                <input type="text" name="description" id="description" placeholder="Optionale kurze Beschreibung">
+            </div>
+            
+            <div class="form-group">
+                <label for="icon">Vektor-Symbol (Icon)</label>
+                <select name="icon" id="icon" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); font-weight: 600; cursor: pointer; outline: none; transition: border-color 0.2s;">
+                    <option value="general">🏷️ Standard-Label</option>
+                    <option value="computer">🖥️ Computer &amp; Medien</option>
+                    <option value="science">🔬 Naturwissenschaften &amp; Labore</option>
+                    <option value="sport">🏟️ Sport, Gymnastik &amp; Bewegung</option>
+                </select>
+            </div>
+            
+            <button type="submit" class="btn-primary-block">
+                <span>🏷️ Kategorie speichern</span>
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Department Modal -->
+<div id="edit-department-modal" class="modal-overlay hidden" onclick="closeModal('edit-department-modal')">
+    <div class="modal-card card" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h3>✏️ Kategorie bearbeiten</h3>
+            <button class="btn-close-modal" onclick="closeModal('edit-department-modal')">&times;</button>
+        </div>
+        <p class="modal-desc">Passen Sie die Details dieser Kategorie an.</p>
+        
+        <form action="/admin/departments/edit" method="POST" class="modern-form compact">
+            <input type="hidden" name="department_id" id="edit-dept-id">
+            
+            <div class="form-group">
+                <label for="edit-dept-name">Kategorie-Name</label>
+                <input type="text" name="name" id="edit-dept-name" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="edit-dept-desc">Beschreibung</label>
+                <input type="text" name="description" id="edit-dept-desc" placeholder="Kurze Beschreibung">
+            </div>
+            
+            <div class="form-group">
+                <label for="edit-dept-icon">Vektor-Symbol (Icon)</label>
+                <select name="icon" id="edit-dept-icon" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); font-weight: 600; cursor: pointer; outline: none; transition: border-color 0.2s;">
+                    <option value="general">🏷️ Standard-Label</option>
+                    <option value="computer">🖥️ Computer &amp; Medien</option>
+                    <option value="science">🔬 Naturwissenschaften &amp; Labore</option>
+                    <option value="sport">🏟️ Sport, Gymnastik &amp; Bewegung</option>
+                </select>
+            </div>
+            
+            <button type="submit" class="btn-primary-block">
+                <span>💾 Änderungen speichern</span>
+            </button>
+        </form>
+    </div>
+</div>
+
+<%- include('../partials/footer') %>

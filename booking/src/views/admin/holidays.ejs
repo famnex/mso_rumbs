@@ -1,0 +1,142 @@
+<%- include('../partials/header') %>
+
+<div class="calendar-header-bar card" style="margin-bottom: 24px;">
+    <div class="calendar-info">
+        <div class="calendar-breadcrumb">
+            <a href="/">Dashboard</a> &raquo; <a href="/admin">Systemsteuerung</a> &raquo; <strong>Ferien verwalten</strong>
+        </div>
+        <h2>🏖️ Schulferien &amp; schulfreie Tage verwalten</h2>
+    </div>
+    <div class="calendar-controls">
+        <a href="/admin" class="btn-nav-week" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none;">
+            <span>🛠️ Systemsteuerung</span>
+        </a>
+    </div>
+</div>
+
+<div class="card" style="margin-top: 24px;">
+    <div class="card-header-with-action">
+        <div>
+            <h3>🏖️ Eingetragene Ferienzeiträume</h3>
+            <p class="card-desc">Definieren Sie Zeiträume, in denen Lehrerbuchungen automatisch blockiert sind.</p>
+        </div>
+        <button class="btn-action-trigger" onclick="openModal('add-holiday-modal')">
+            <span>➕ Ferienzeitraum hinzufügen</span>
+        </button>
+    </div>
+
+    <% if (holidays && holidays.length) { %>
+        <div class="table-responsive">
+            <table class="admin-list-table">
+                <thead>
+                    <tr>
+                        <th>Ferien-Bezeichnung</th>
+                        <th>Von</th>
+                        <th>Bis</th>
+                        <th style="text-align: right;">Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% holidays.forEach(h => { %>
+                        <tr>
+                            <td><strong><%= h.name %></strong></td>
+                            <td>
+                                <span class="status-badge status-open" style="background: var(--primary-glow); color: var(--primary);">
+                                    <%= new Date(h.date_start).toLocaleDateString('de-DE') %>
+                                </span>
+                            </td>
+                            <td>
+                                <span class="status-badge status-open" style="background: var(--danger-bg); color: var(--danger-hover);">
+                                    <%= new Date(h.date_end).toLocaleDateString('de-DE') %>
+                                </span>
+                            </td>
+                            <td style="text-align: right; white-space: nowrap;">
+                                <button class="btn-edit-sm" onclick="openEditHolidayModal('<%= h.holiday_id %>', '<%= h.name %>', '<%= h.date_start %>', '<%= h.date_end %>')">
+                                    ✏️ Bearbeiten
+                                </button>
+                                <form action="/admin/holidays/delete" method="POST" style="display:inline;" onsubmit="return confirm('Möchten Sie diesen Ferienzeitraum wirklich löschen?');">
+                                    <input type="hidden" name="holiday_id" value="<%= h.holiday_id %>">
+                                    <button type="submit" class="btn-danger-sm">Löschen 🗑️</button>
+                                </form>
+                            </td>
+                        </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        </div>
+    <% } else { %>
+        <div class="empty-state">
+            <p>Aktuell sind keine schulfreien Ferienzeiten im System eingetragen.</p>
+        </div>
+    <% } %>
+</div>
+
+<!-- Add Holiday Modal -->
+<div id="add-holiday-modal" class="modal-overlay hidden" onclick="closeModal('add-holiday-modal')">
+    <div class="modal-card card" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h3>🆕 Ferienzeitraum hinzufügen</h3>
+            <button class="btn-close-modal" onclick="closeModal('add-holiday-modal')">&times;</button>
+        </div>
+        <p class="modal-desc">Definieren Sie einen neuen Zeitraum. An diesen Tagen sind Buchungen automatisch blockiert.</p>
+        
+        <form action="/admin/holidays/add" method="POST" class="modern-form compact">
+            <div class="form-group">
+                <label for="holiday-name">Name / Bezeichnung</label>
+                <input type="text" name="name" id="holiday-name" required placeholder="z. B. Sommerferien, Pfingsten">
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="date-start">Erster Ferientag (Start)</label>
+                    <input type="date" name="date_start" id="date-start" required>
+                </div>
+                <div class="form-group">
+                    <label for="date-end">Letzter Ferientag (Ende)</label>
+                    <input type="date" name="date_end" id="date-end" required>
+                </div>
+            </div>
+            
+            <button type="submit" class="btn-primary-block" style="margin-top: 15px;">
+                <span>🏖️ Ferienzeitraum anlegen</span>
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Holiday Modal -->
+<div id="edit-holiday-modal" class="modal-overlay hidden" onclick="closeModal('edit-holiday-modal')">
+    <div class="modal-card card" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h3>✏️ Ferienzeitraum bearbeiten</h3>
+            <button class="btn-close-modal" onclick="closeModal('edit-holiday-modal')">&times;</button>
+        </div>
+        <p class="modal-desc">Passen Sie den Namen oder die Zeitgrenzen an.</p>
+        
+        <form action="/admin/holidays/edit" method="POST" class="modern-form compact">
+            <input type="hidden" name="holiday_id" id="edit-holiday-id">
+            
+            <div class="form-group">
+                <label for="edit-holiday-name">Name / Bezeichnung</label>
+                <input type="text" name="name" id="edit-holiday-name" required>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="edit-holiday-start">Erster Ferientag (Start)</label>
+                    <input type="date" name="date_start" id="edit-holiday-start" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-holiday-end">Letzter Ferientag (Ende)</label>
+                    <input type="date" name="date_end" id="edit-holiday-end" required>
+                </div>
+            </div>
+            
+            <button type="submit" class="btn-primary-block" style="margin-top: 15px;">
+                <span>💾 Änderungen speichern</span>
+            </button>
+        </form>
+    </div>
+</div>
+
+<%- include('../partials/footer') %>

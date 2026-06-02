@@ -1,0 +1,185 @@
+<%- include('../partials/header') %>
+
+<div class="calendar-header-bar card" style="margin-bottom: 24px;">
+    <div class="calendar-info">
+        <div class="calendar-breadcrumb">
+            <a href="/">Dashboard</a> &raquo; <a href="/admin">Systemsteuerung</a> &raquo; <strong>Kalenderwochen</strong>
+        </div>
+        <h2>🏫 Jahresplan &amp; A/B-Wochen (Ungerade/Gerade)</h2>
+    </div>
+    <div class="calendar-controls">
+        <a href="/admin" class="btn-nav-week" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none;">
+            <span>🛠️ Systemsteuerung</span>
+        </a>
+    </div>
+</div>
+
+<div class="admin-layout-columns" style="margin-top: 24px;">
+    <!-- Active Weeks and Assignment list -->
+    <div class="admin-main-card card">
+        <h3>📅 Kalenderwochen zuordnen</h3>
+        <p class="card-desc">Ordnen Sie jeden Montag im laufenden Schuljahr einem Wochentyp (Ungerade / Gerade Woche) zu. Dies steuert den automatischen Wechsel der Regelunterrichts-Dauerbuchungen im Kalender.</p>
+        
+        <% if (mondays && mondays.length) { %>
+            <div style="max-height: 520px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 12px; padding: 10px; background: rgba(0, 0, 0, 0.02);">
+                <table class="zebra-table" style="margin-top:0; border:none; background:none;">
+                    <thead>
+                        <tr>
+                            <th>Montag-Datum</th>
+                            <th>Status / Typ-Zuweisung</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% mondays.forEach(m => { %>
+                            <% 
+                                const formattedDate = new Date(m).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' });
+                                const currentMappedWeekId = mappedWeeks[m] || '';
+                            %>
+                            <tr>
+                                <td><strong><%= formattedDate %></strong></td>
+                                <td>
+                                    <form action="/admin/weeks/assign" method="POST" style="margin:0; display:flex; align-items:center; gap:10px;">
+                                        <input type="hidden" name="date" value="<%= m %>">
+                                        <select name="week_id" onchange="this.form.submit()" style="padding: 8px 12px; border-radius: 8px; font-size: 13px; font-weight:600; min-width: 220px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); cursor: pointer; outline: none;">
+                                            <option value="">-- Keine (Ferien/Feiertag) --</option>
+                                            <% weeks.forEach(w => { %>
+                                                <option value="<%= w.week_id %>" <%= currentMappedWeekId == w.week_id ? 'selected' : '' %>>
+                                                    <%= w.name %>
+                                                </option>
+                                            <% }) %>
+                                        </select>
+                                        <noscript>
+                                            <button type="submit" class="btn-success-sm" style="padding: 4px 8px;">Speichern</button>
+                                        </noscript>
+                                    </form>
+                                </td>
+                            </tr>
+                        <% }) %>
+                    </tbody>
+                </table>
+            </div>
+        <% } else { %>
+            <div class="empty-state">
+                <p>Es sind aktuell keine Termine im gewählten Schuljahr generiert. Bitte legen Sie zuerst den Jahresplan rechts an.</p>
+            </div>
+        <% } %>
+    </div>
+
+    <!-- Right Side: Academic Year boundaries & Week types configuration -->
+    <div style="display: flex; flex-direction: column; gap: 24px;">
+        <!-- Academic Year Settings Card -->
+        <div class="card">
+            <h3>🏫 Schuljahr (Jahresplan) einstellen</h3>
+            <p class="card-desc">Geben Sie das Start- und Enddatum für das aktuelle Schuljahr ein. Dadurch werden alle gültigen Wochenbereiche berechnet.</p>
+            
+            <form action="/admin/weeks/academicyear" method="POST" class="modern-form compact">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="date_start">Schuljahr Start</label>
+                        <input type="date" name="date_start" id="date_start" value="<%= academicyear ? academicyear.date_start : '' %>" required style="padding: 10px;">
+                    </div>
+                    <div class="form-group">
+                        <label for="date_end">Schuljahr Ende</label>
+                        <input type="date" name="date_end" id="date_end" value="<%= academicyear ? academicyear.date_end : '' %>" required style="padding: 10px;">
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn-primary-block" style="margin-top: 10px;">
+                    <span>💾 Schuljahresgrenzen speichern</span>
+                </button>
+            </form>
+        </div>
+
+        <!-- Week types Card -->
+        <div class="card">
+            <div class="card-header-with-action">
+                <div>
+                    <h3>✨ Wochentypen verwalten</h3>
+                    <p class="card-desc">Konfigurierte Rotationstypen für die Stundenpläne.</p>
+                </div>
+                <button class="btn-action-trigger" onclick="openModal('add-week-modal')" style="padding: 8px 12px; font-size:12px;">
+                    <span>➕ Hinzufügen</span>
+                </button>
+            </div>
+            
+            <table class="admin-list-table" style="font-size: 13.5px; margin-bottom: 20px; margin-top: 10px;">
+                <thead>
+                    <tr>
+                        <th>Bezeichnung</th>
+                        <th>Farbe</th>
+                        <th style="text-align: right;">Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% weeks.forEach(w => { %>
+                        <tr>
+                            <td><strong><%= w.name %></strong></td>
+                            <td>
+                                <span class="status-badge" style="background: #<%= w.bgcol %>; color: #<%= w.fgcol %>; font-size: 11px; padding: 4px 10px; border: 1px solid var(--border-color);">
+                                    <%= w.name.split(' ')[0] %>
+                                </span>
+                            </td>
+                            <td style="text-align: right; white-space: nowrap;">
+                                <button class="btn-edit-sm" onclick="openEditWeekModal('<%= w.week_id %>', '<%= w.name %>')" style="padding: 5px 10px;">
+                                    ✏️
+                                </button>
+                                <form action="/admin/weeks/delete" method="POST" style="display:inline;" onsubmit="return confirm('Möchten Sie diesen Wochentyp wirklich löschen? Alle Belegungs-Zuordnungen werden aufgehoben!');">
+                                    <input type="hidden" name="week_id" value="<%= w.week_id %>">
+                                    <button type="submit" class="btn-danger-sm" style="padding: 5px 10px;">🗑️</button>
+                                </form>
+                            </td>
+                        </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Add Week Modal -->
+<div id="add-week-modal" class="modal-overlay hidden" onclick="closeModal('add-week-modal')">
+    <div class="modal-card card" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h3>🆕 Wochentyp hinzufügen</h3>
+            <button class="btn-close-modal" onclick="closeModal('add-week-modal')">&times;</button>
+        </div>
+        <p class="modal-desc">Erstellen Sie einen neuen Rotationstyp für den Regelstundenplan (z. B. C-Woche).</p>
+        
+        <form action="/admin/weeks/add" method="POST" class="modern-form compact">
+            <div class="form-group">
+                <label for="week_name">Bezeichnung des Wochentyps</label>
+                <input type="text" name="name" id="week_name" required placeholder="z. B. C-Woche (Gerade)">
+            </div>
+            
+            <button type="submit" class="btn-primary-block">
+                <span>➕ Wochentyp erstellen</span>
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Week Modal -->
+<div id="edit-week-modal" class="modal-overlay hidden" onclick="closeModal('edit-week-modal')">
+    <div class="modal-card card" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h3>✏️ Wochentyp bearbeiten</h3>
+            <button class="btn-close-modal" onclick="closeModal('edit-week-modal')">&times;</button>
+        </div>
+        <p class="modal-desc">Passen Sie den Namen des Wochentyps an.</p>
+        
+        <form action="/admin/weeks/edit" method="POST" class="modern-form compact">
+            <input type="hidden" name="week_id" id="edit-week-id">
+            
+            <div class="form-group">
+                <label for="edit-week-name">Bezeichnung des Wochentyps</label>
+                <input type="text" name="name" id="edit-week-name" required>
+            </div>
+            
+            <button type="submit" class="btn-primary-block">
+                <span>💾 Änderungen speichern</span>
+            </button>
+        </form>
+    </div>
+</div>
+
+<%- include('../partials/footer') %>

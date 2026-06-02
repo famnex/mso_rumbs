@@ -1,0 +1,154 @@
+<%- include('../partials/header') %>
+
+<div class="calendar-header-bar card" style="margin-bottom: 24px;">
+    <div class="calendar-info">
+        <div class="calendar-breadcrumb">
+            <a href="/">Dashboard</a> &raquo; <a href="/admin">Systemsteuerung</a> &raquo; <strong>Stunden verwalten</strong>
+        </div>
+        <h2>⏰ Unterrichtsstunden verwalten</h2>
+    </div>
+    <div class="calendar-controls">
+        <a href="/admin" class="btn-nav-week" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none;">
+            <span>🛠️ Systemsteuerung</span>
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header-with-action">
+        <div>
+            <h3>⏰ Vorhandene Unterrichtsstunden</h3>
+            <p class="card-desc">Übersicht aller für Belegungen definierten Stunden.</p>
+        </div>
+        <button class="btn-action-trigger" onclick="openModal('add-period-modal')">
+            <span>➕ Neue Stunde anlegen</span>
+        </button>
+    </div>
+
+    <div class="table-responsive">
+        <table class="zebra-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Beginn</th>
+                    <th>Ende</th>
+                    <th>Buchbar</th>
+                    <th style="text-align: right;">Aktionen</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% if (periods && periods.length) { %>
+                    <% periods.forEach(period => { %>
+                        <tr>
+                            <td><%= period.period_id %></td>
+                            <td><strong><%= period.name %></strong></td>
+                            <td><%= period.time_start.slice(0, 5) %> Uhr</td>
+                            <td><%= period.time_end.slice(0, 5) %> Uhr</td>
+                            <td>
+                                <span class="status-badge <%= period.bookable ? 'status-open' : 'status-closed' %>">
+                                    <%= period.bookable ? 'Ja' : 'Nein' %>
+                                </span>
+                            </td>
+                            <td style="text-align: right; white-space: nowrap;">
+                                <button class="btn-edit-sm" onclick="openEditPeriodModal('<%= period.period_id %>', '<%= period.name %>', '<%= period.time_start.slice(0, 5) %>', '<%= period.time_end.slice(0, 5) %>', '<%= period.bookable %>')">
+                                    ✏️ Bearbeiten
+                                </button>
+                                <form action="/admin/periods/delete" method="POST" onsubmit="return confirm('Möchten Sie diese Stunde wirklich löschen? Alle zugehörigen Buchungen werden storniert!');" style="display:inline;">
+                                    <input type="hidden" name="period_id" value="<%= period.period_id %>">
+                                    <button type="submit" class="btn-danger-sm">🗑️ Löschen</button>
+                                </form>
+                            </td>
+                        </tr>
+                    <% }) %>
+                <% } else { %>
+                    <tr>
+                        <td colspan="6" class="text-center">Keine Unterrichtsstunden vorhanden.</td>
+                    </tr>
+                <% } %>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Add Period Modal -->
+<div id="add-period-modal" class="modal-overlay hidden" onclick="closeModal('add-period-modal')">
+    <div class="modal-card card" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h3>🆕 Stunde hinzufügen</h3>
+            <button class="btn-close-modal" onclick="closeModal('add-period-modal')">&times;</button>
+        </div>
+        <p class="modal-desc">Definieren Sie eine neue Stunde für den Zeitplan.</p>
+        
+        <form action="/admin/periods/add" method="POST" class="modern-form compact">
+            <div class="form-group">
+                <label for="period-name">Stunden-Bezeichnung</label>
+                <input type="text" name="name" id="period-name" placeholder="z. B. 7. Stunde, Mittagsband" required>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="time-start">Beginn (HH:MM)</label>
+                    <input type="time" name="time_start" id="time-start" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="time-end">Ende (HH:MM)</label>
+                    <input type="time" name="time_end" id="time-end" required>
+                </div>
+            </div>
+
+            <div class="form-group inline-checkbox">
+                <input type="checkbox" name="bookable" id="period-bookable" value="1" checked>
+                <label for="period-bookable">Für Lehrer zur Buchung freigeben</label>
+            </div>
+
+            <button type="submit" class="btn-primary-block">
+                <span>➕ Stunde erstellen</span>
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Period Modal -->
+<div id="edit-period-modal" class="modal-overlay hidden" onclick="closeModal('edit-period-modal')">
+    <div class="modal-card card" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h3>✏️ Stunde bearbeiten</h3>
+            <button class="btn-close-modal" onclick="closeModal('edit-period-modal')">&times;</button>
+        </div>
+        <p class="modal-desc">Ändern Sie die Bezeichnung oder Zeitgrenzen der Stunde.</p>
+        
+        <form action="/admin/periods/edit" method="POST" class="modern-form compact">
+            <input type="hidden" name="period_id" id="edit-period-id">
+            
+            <div class="form-group">
+                <label for="edit-period-name">Stunden-Bezeichnung</label>
+                <input type="text" name="name" id="edit-period-name" required>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="edit-period-start">Beginn (HH:MM)</label>
+                    <input type="time" name="time_start" id="edit-period-start" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="edit-period-end">Ende (HH:MM)</label>
+                    <input type="time" name="time_end" id="edit-period-end" required>
+                </div>
+            </div>
+
+            <div class="form-group inline-checkbox">
+                <input type="checkbox" name="bookable" id="edit-period-bookable" value="1">
+                <label for="edit-period-bookable">Für Lehrer zur Buchung freigeben</label>
+            </div>
+
+            <button type="submit" class="btn-primary-block">
+                <span>💾 Änderungen speichern</span>
+            </button>
+        </form>
+    </div>
+</div>
+
+<%- include('../partials/footer') %>

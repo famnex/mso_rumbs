@@ -1,0 +1,15 @@
+# Node.js dependencies
+booking/node_modules/
+
+# Local instance data (SQLite DB & private credentials)
+booking/local/
+booking/scratch/
+
+# Backups and temporary files
+booking/php_backup/
+booking/local/logs/
+booking/local/sessions/
+
+# OS specific files
+.DS_Store
+Thumbs.db

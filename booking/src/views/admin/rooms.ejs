@@ -1,0 +1,164 @@
+<%- include('../partials/header') %>
+
+<div class="calendar-header-bar card" style="margin-bottom: 24px;">
+    <div class="calendar-info">
+        <div class="calendar-breadcrumb">
+            <a href="/">Dashboard</a> &raquo; <a href="/admin">Systemsteuerung</a> &raquo; <strong>Räume verwalten</strong>
+        </div>
+        <h2>🚪 Räume verwalten</h2>
+    </div>
+    <div class="calendar-controls">
+        <a href="/admin" class="btn-nav-week" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none;">
+            <span>🛠️ Systemsteuerung</span>
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header-with-action">
+        <div>
+            <h3>🚪 Vorhandene Räume</h3>
+            <p class="card-desc">Übersicht aller im System angelegten Räume.</p>
+        </div>
+        <button class="btn-action-trigger" onclick="openModal('add-room-modal')">
+            <span>➕ Neuen Raum anlegen</span>
+        </button>
+    </div>
+
+    <div class="table-responsive">
+        <table class="zebra-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Raum</th>
+                    <th>Kategorie / Fachbereich</th>
+                    <th>Notiz / Ausstattung</th>
+                    <th>Status</th>
+                    <th style="text-align: right;">Aktionen</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% if (rooms && rooms.length) { %>
+                    <% rooms.forEach(room => { %>
+                        <tr>
+                            <td><%= room.room_id %></td>
+                            <td><strong><%= room.name %></strong></td>
+                            <td><span style="font-weight: 600;"><%= room.department_name || 'Keine' %></span></td>
+                            <td><span class="text-muted"><%= room.notes || '-' %></span></td>
+                            <td>
+                                <span class="status-badge <%= room.bookable ? 'status-open' : 'status-closed' %>">
+                                    <%= room.bookable ? 'Buchbar' : 'Gesperrt' %>
+                                </span>
+                            </td>
+                            <td style="text-align: right; white-space: nowrap;">
+                                <button class="btn-edit-sm" onclick="openEditRoomModal('<%= room.room_id %>', '<%= room.name %>', '<%= room.department_id || '' %>', '<%= room.notes || '' %>', '<%= room.bookable %>')">
+                                    ✏️ Bearbeiten
+                                </button>
+                                <form action="/admin/rooms/delete" method="POST" onsubmit="return confirm('Möchten Sie diesen Raum wirklich löschen? Alle zugehörigen Buchungen werden storniert!');" style="display:inline;">
+                                    <input type="hidden" name="room_id" value="<%= room.room_id %>">
+                                    <button type="submit" class="btn-danger-sm">🗑️ Löschen</button>
+                                </form>
+                            </td>
+                        </tr>
+                    <% }) %>
+                <% } else { %>
+                    <tr>
+                        <td colspan="6" class="text-center">Keine Räume vorhanden.</td>
+                    </tr>
+                <% } %>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Add Room Modal -->
+<div id="add-room-modal" class="modal-overlay hidden" onclick="closeModal('add-room-modal')">
+    <div class="modal-card card" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h3>🆕 Raum hinzufügen</h3>
+            <button class="btn-close-modal" onclick="closeModal('add-room-modal')">&times;</button>
+        </div>
+        <p class="modal-desc">Geben Sie die Raumdetails ein, um ihn dem System hinzuzufügen.</p>
+        
+        <form action="/admin/rooms/add" method="POST" class="modern-form compact">
+            <div class="form-group">
+                <label for="room-name">Raumname / Nummer</label>
+                <input type="text" name="name" id="room-name" placeholder="z. B. R 101, Computerraum" required>
+            </div>
+
+            <div class="form-group">
+                <label for="room-dept">Kategorie / Fachbereich</label>
+                <select name="department_id" id="room-dept" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); font-weight: 600; cursor: pointer; outline: none; transition: border-color 0.2s;">
+                    <option value="">-- Keine Kategorie --</option>
+                    <% if (typeof departments !== 'undefined' && departments && departments.length) { %>
+                        <% departments.forEach(dept => { %>
+                            <option value="<%= dept.department_id %>"><%= dept.name %></option>
+                        <% }) %>
+                    <% } %>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="room-notes">Ausstattung / Bemerkung</label>
+                <textarea name="notes" id="room-notes" placeholder="z. B. 30 PCs, Smartboard, Beamer" rows="3" style="width: 100%; border-radius: 10px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); padding: 10px; outline: none; font-family: inherit; font-size: 13.5px;"></textarea>
+            </div>
+
+            <div class="form-group inline-checkbox">
+                <input type="checkbox" name="bookable" id="room-bookable" value="1" checked>
+                <label for="room-bookable">Für Lehrer zur Buchung freigeben</label>
+            </div>
+
+            <button type="submit" class="btn-primary-block">
+                <span>➕ Raum erstellen</span>
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Room Modal -->
+<div id="edit-room-modal" class="modal-overlay hidden" onclick="closeModal('edit-room-modal')">
+    <div class="modal-card card" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h3>✏️ Raum bearbeiten</h3>
+            <button class="btn-close-modal" onclick="closeModal('edit-room-modal')">&times;</button>
+        </div>
+        <p class="modal-desc">Passen Sie die Raumdetails an.</p>
+        
+        <form action="/admin/rooms/edit" method="POST" class="modern-form compact">
+            <input type="hidden" name="room_id" id="edit-room-id">
+            
+            <div class="form-group">
+                <label for="edit-room-name">Raumname / Nummer</label>
+                <input type="text" name="name" id="edit-room-name" required>
+            </div>
+
+            <div class="form-group">
+                <label for="edit-room-dept">Kategorie / Fachbereich</label>
+                <select name="department_id" id="edit-room-dept" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); font-weight: 600; cursor: pointer; outline: none; transition: border-color 0.2s;">
+                    <option value="">-- Keine Kategorie --</option>
+                    <% if (typeof departments !== 'undefined' && departments && departments.length) { %>
+                        <% departments.forEach(dept => { %>
+                            <option value="<%= dept.department_id %>"><%= dept.name %></option>
+                        <% }) %>
+                    <% } %>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="edit-room-notes">Ausstattung / Bemerkung</label>
+                <textarea name="notes" id="edit-room-notes" placeholder="z. B. 30 PCs, Smartboard, Beamer" rows="3" style="width: 100%; border-radius: 10px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); padding: 10px; outline: none; font-family: inherit; font-size: 13.5px;"></textarea>
+            </div>
+
+            <div class="form-group inline-checkbox">
+                <input type="checkbox" name="bookable" id="edit-room-bookable" value="1">
+                <label for="edit-room-bookable">Für Lehrer zur Buchung freigeben</label>
+            </div>
+
+            <button type="submit" class="btn-primary-block">
+                <span>💾 Änderungen speichern</span>
+            </button>
+        </form>
+    </div>
+</div>
+
+<%- include('../partials/footer') %>

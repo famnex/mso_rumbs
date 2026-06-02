@@ -1,0 +1,105 @@
+<%- include('../partials/header') %>
+
+<div class="calendar-header-bar card" style="margin-bottom: 24px;">
+    <div class="calendar-info">
+        <div class="calendar-breadcrumb">
+            <a href="/">Dashboard</a> &raquo; <a href="/admin">Systemsteuerung</a> &raquo; <strong>Konfiguration (JWT)</strong>
+        </div>
+        <h2>⚙️ SSO &amp; JWT Konfiguration</h2>
+    </div>
+    <div class="calendar-controls">
+        <a href="/admin" class="btn-nav-week" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none;">
+            <span>🛠️ Systemsteuerung</span>
+        </a>
+    </div>
+</div>
+
+<div class="card" style="max-width: 800px; margin: 0 auto; padding: 30px;">
+    <div style="margin-bottom: 24px; border-bottom: 1px solid var(--border-color); padding-bottom: 15px;">
+        <h3>⚙️ Single Sign-On (SSO) Einstellungen</h3>
+        <p class="card-desc">Verbinden Sie die Raumbelegung mit dem schuleigenen MSO-Portal. Über gesicherte JSON Web Tokens (JWT) werden Lehrkräfte automatisch authentifiziert und bei Bedarf Just-In-Time (JIT) neu registriert.</p>
+    </div>
+
+    <form action="/admin/config" method="POST" class="modern-form">
+        <!-- 1. Enabled Toggle -->
+        <div class="form-group" style="margin-bottom: 24px;">
+            <label for="enabled" style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+                <div>
+                    <strong style="font-size: 15px; color: var(--text-main);">SSO Authentifizierung aktivieren</strong>
+                    <div style="font-size: 12.5px; color: var(--text-muted); font-weight: normal; margin-top: 4px;">Aktiviert die alternative Anmeldung per schuleigenem Web-Portal (JWT Token-Redirect).</div>
+                </div>
+                <input type="checkbox" name="enabled" id="enabled" value="1" <%= jwtConfig.enabled ? 'checked' : '' %> style="width: 22px; height: 22px; cursor: pointer; accent-color: var(--primary);">
+            </label>
+        </div>
+
+        <div style="border-top: 1px solid var(--border-color); margin-top: 20px; padding-top: 20px;"></div>
+
+        <!-- 2. Secret Key -->
+        <div class="form-group" style="margin-bottom: 20px;">
+            <label for="secret">Shared Secret Key (Gemeinsames Geheimnis)</label>
+            <div class="input-wrapper" style="position: relative;">
+                <span class="input-icon">🔑</span>
+                <input type="text" name="secret" id="secret" value="<%= jwtConfig.secret %>" required placeholder="Shared Secret Key für die HMAC-Signaturverifizierung" style="padding-left: 40px; width: 100%;">
+            </div>
+            <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 4px;">Dieses Passwort/Secret muss exakt mit dem Eintrag im SSO-Portal übereinstimmen. Es sichert die Echtheit der empfangenen Tokens.</div>
+        </div>
+
+        <!-- 3. SSO Portal URL -->
+        <div class="form-group" style="margin-bottom: 20px;">
+            <label for="sso_url">SSO Portal Login-URL</label>
+            <div class="input-wrapper" style="position: relative;">
+                <span class="input-icon">🔗</span>
+                <input type="url" name="sso_url" id="sso_url" value="<%= jwtConfig.sso_url %>" required placeholder="https://portal.schule.de/login" style="padding-left: 40px; width: 100%;">
+            </div>
+            <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 4px;">Der externe Anmeldebildschirm der Schule, an den nicht eingeloggte Lehrer übergeleitet werden.</div>
+        </div>
+
+        <!-- 3.5. Logout Redirect URL -->
+        <div class="form-group" style="margin-bottom: 20px;">
+            <label for="logout_redirect_url">Alternatives Weiterleitungsziel nach dem Log-out (optional)</label>
+            <div class="input-wrapper" style="position: relative;">
+                <span class="input-icon">🚪</span>
+                <input type="url" name="logout_redirect_url" id="logout_redirect_url" value="<%= jwtConfig.logout_redirect_url || '' %>" placeholder="z. B. https://portal.schule.de/launcher (leer lassen für Login-Bildschirm)" style="padding-left: 40px; width: 100%;">
+            </div>
+            <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 4px;">Wenn ausgefüllt, werden Benutzer beim Klick auf "Abmelden" zu dieser URL (z. B. dem Portal-Dashboard) anstatt zum lokalen Login-Bildschirm weitergeleitet.</div>
+        </div>
+
+        <div class="form-row" style="margin-bottom: 20px;">
+            <!-- 4. Parameter Name -->
+            <div class="form-group" style="margin-bottom: 0;">
+                <label for="parameter_name">URL-Parametername</label>
+                <input type="text" name="parameter_name" id="parameter_name" value="<%= jwtConfig.parameter_name %>" required placeholder="token" style="width: 100%;">
+                <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Name der Query-Variable beim Rückkanal (z. B. ?token=...)</div>
+            </div>
+
+            <!-- 5. Default Role -->
+            <div class="form-group" style="margin-bottom: 0;">
+                <label for="default_authlevel">Standard-Rolle für neue Konten</label>
+                <select name="default_authlevel" id="default_authlevel" required style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); font-weight: 600; cursor: pointer; outline: none;">
+                    <option value="2" <%= jwtConfig.default_authlevel === 2 ? 'selected' : '' %>>Lehrkraft (Standard)</option>
+                    <option value="1" <%= jwtConfig.default_authlevel === 1 ? 'selected' : '' %>>Administrator</option>
+                </select>
+                <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Automatisch zugewiesene Berechtigung bei Erst-Registrierung.</div>
+            </div>
+        </div>
+
+        <div style="border-top: 1px solid var(--border-color); margin-top: 20px; padding-top: 20px;"></div>
+
+        <!-- 6. JIT Auto Provisioning -->
+        <div class="form-group" style="margin-bottom: 30px;">
+            <label for="auto_create_user" style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+                <div>
+                    <strong style="font-size: 15px; color: var(--text-main);">Benutzerkonten automatisch provisionieren (JIT)</strong>
+                    <div style="font-size: 12.5px; color: var(--text-muted); font-weight: normal; margin-top: 4px;">Legt unbekannte Benutzerkonten beim ersten erfolgreichen SSO-Login vollautomatisch im Hintergrund neu an.</div>
+                </div>
+                <input type="checkbox" name="auto_create_user" id="auto_create_user" value="1" <%= jwtConfig.auto_create_user ? 'checked' : '' %> style="width: 22px; height: 22px; cursor: pointer; accent-color: var(--primary);">
+            </label>
+        </div>
+
+        <button type="submit" class="btn-primary-block" style="width: 100%; padding: 14px; font-size: 14px;">
+            <span>💾 SSO-Konfiguration speichern &amp; synchronisieren</span>
+        </button>
+    </form>
+</div>
+
+<%- include('../partials/footer') %>

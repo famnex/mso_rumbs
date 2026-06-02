@@ -1,0 +1,195 @@
+<%- include('../partials/header') %>
+
+<div class="calendar-header-bar card" style="margin-bottom: 24px;">
+    <div class="calendar-info">
+        <div class="calendar-breadcrumb">
+            <a href="/">Dashboard</a> &raquo; <a href="/admin">Systemsteuerung</a> &raquo; <strong>Benutzer verwalten</strong>
+        </div>
+        <h2>👥 Benutzer verwalten</h2>
+    </div>
+    <div class="calendar-controls">
+        <a href="/admin" class="btn-nav-week" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none;">
+            <span>🛠️ Systemsteuerung</span>
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header-with-action">
+        <div>
+            <h3>👥 Registrierte Benutzerkonten</h3>
+            <p class="card-desc">Verwalten Sie Berechtigungen und den Aktivierungsstatus der Lehrkräfte.</p>
+        </div>
+        <button class="btn-action-trigger" onclick="openModal('add-user-modal')">
+            <span>➕ Neuen Benutzer anlegen</span>
+        </button>
+    </div>
+
+    <div class="table-responsive">
+        <table class="zebra-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Benutzername</th>
+                    <th>Name</th>
+                    <th>E-Mail</th>
+                    <th>Rolle</th>
+                    <th>Letzter Login</th>
+                    <th style="text-align: right;">Aktionen</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% if (users && users.length) { %>
+                    <% users.forEach(user => { %>
+                        <tr>
+                            <td><%= user.user_id %></td>
+                            <td><strong><%= user.username %></strong></td>
+                            <td><%= user.displayname || `${user.firstname} ${user.lastname}` || '-' %></td>
+                            <td><span class="text-muted"><%= user.email || '-' %></span></td>
+                            <td>
+                                <span class="role-badge <%= user.authlevel === 1 ? 'status-open' : 'status-closed' %>" style="padding: 4px 10px; font-weight: 700; border-radius: 30px; font-size:11.5px; <%= user.authlevel === 1 ? 'background: var(--warning-bg); color: var(--warning);' : 'background: var(--primary-glow); color: var(--primary);' %>">
+                                    <%= user.authlevel === 1 ? 'Administrator' : 'Lehrer' %>
+                                </span>
+                            </td>
+                            <td>
+                                <span class="text-muted small">
+                                    <%= user.lastlogin ? new Date(user.lastlogin).toLocaleString('de-DE') : 'Nie' %>
+                                </span>
+                            </td>
+                            <td style="text-align: right; white-space: nowrap;">
+                                <button class="btn-edit-sm" onclick="openEditUserModal('<%= user.user_id %>', '<%= user.username %>', '<%= user.firstname || '' %>', '<%= user.lastname || '' %>', '<%= user.email || '' %>', '<%= user.authlevel %>')">
+                                    ✏️ Bearbeiten
+                                </button>
+                                
+                                <form action="/admin/users/toggle" method="POST" style="display:inline;">
+                                    <input type="hidden" name="user_id" value="<%= user.user_id %>">
+                                    <input type="hidden" name="enabled" value="<%= user.enabled ? '0' : '1' %>">
+                                    <button type="submit" class="btn-success-sm" style="<%= user.enabled ? 'background: var(--danger-bg); color: var(--danger-hover); border-color: rgba(239,68,68,0.2);' : '' %>">
+                                        <%= user.enabled ? '🚫 Sperren' : '🔑 Aktivieren' %>
+                                    </button>
+                                </form>
+                                
+                                <% if (user.username !== 'admin') { %>
+                                    <form action="/admin/users/delete" method="POST" style="display:inline;" onsubmit="return confirm('Möchten Sie diesen Benutzer wirklich löschen? Alle seine Reservierungen werden entfernt!');">
+                                        <input type="hidden" name="user_id" value="<%= user.user_id %>">
+                                        <button type="submit" class="btn-danger-sm">🗑️ Löschen</button>
+                                    </form>
+                                <% } %>
+                            </td>
+                        </tr>
+                    <% }) %>
+                <% } else { %>
+                    <tr>
+                        <td colspan="7" class="text-center">Keine Benutzer im System.</td>
+                    </tr>
+                <% } %>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Add User Modal -->
+<div id="add-user-modal" class="modal-overlay hidden" onclick="closeModal('add-user-modal')">
+    <div class="modal-card card" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h3>🆕 Benutzer anlegen</h3>
+            <button class="btn-close-modal" onclick="closeModal('add-user-modal')">&times;</button>
+        </div>
+        <p class="modal-desc">Erstellen Sie ein neues Benutzerkonto für Lehrkräfte oder Admins.</p>
+        
+        <form action="/admin/users/add" method="POST" class="modern-form compact">
+            <div class="form-group">
+                <label for="username">Benutzername</label>
+                <input type="text" name="username" id="username" placeholder="z. B. t.lehrer" required>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="firstname">Vorname</label>
+                    <input type="text" name="firstname" id="firstname" placeholder="Maria">
+                </div>
+                <div class="form-group">
+                    <label for="lastname">Nachname</label>
+                    <input type="text" name="lastname" id="lastname" placeholder="Muster">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="email">E-Mail Adresse</label>
+                <input type="email" name="email" id="email" placeholder="m.muster@mso-hef.de">
+            </div>
+
+            <div class="form-group">
+                <label for="password">Passwort</label>
+                <input type="password" name="password" id="password" required placeholder="Sicheres Passwort">
+            </div>
+
+            <div class="form-group">
+                <label for="authlevel">Berechtigungsstufe / Rolle</label>
+                <select name="authlevel" id="authlevel" required style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); font-weight: 600; cursor: pointer; outline: none; transition: border-color 0.2s;">
+                    <option value="2">Lehrer (Standard)</option>
+                    <option value="1">Administrator</option>
+                </select>
+            </div>
+
+            <button type="submit" class="btn-primary-block">
+                <span>👤 Benutzer anlegen</span>
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Edit User Modal -->
+<div id="edit-user-modal" class="modal-overlay hidden" onclick="closeModal('edit-user-modal')">
+    <div class="modal-card card" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h3>✏️ Benutzer bearbeiten</h3>
+            <button class="btn-close-modal" onclick="closeModal('edit-user-modal')">&times;</button>
+        </div>
+        <p class="modal-desc">Passen Sie die Stammdaten oder das Kennwort des Kontos an.</p>
+        
+        <form action="/admin/users/edit" method="POST" class="modern-form compact">
+            <input type="hidden" name="user_id" id="edit-user-id">
+            
+            <div class="form-group">
+                <label for="edit-user-username">Benutzername</label>
+                <input type="text" name="username" id="edit-user-username" required>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="edit-user-first">Vorname</label>
+                    <input type="text" name="firstname" id="edit-user-first">
+                </div>
+                <div class="form-group">
+                    <label for="edit-user-last">Nachname</label>
+                    <input type="text" name="lastname" id="edit-user-last">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="edit-user-email">E-Mail Adresse</label>
+                <input type="email" name="email" id="edit-user-email">
+            </div>
+
+            <div class="form-group">
+                <label for="edit-user-password">Neues Passwort (leer lassen für keine Änderung)</label>
+                <input type="password" name="password" id="edit-user-password" placeholder="Nur bei Passwortänderung füllen">
+            </div>
+
+            <div class="form-group">
+                <label for="edit-user-auth">Berechtigungsstufe / Rolle</label>
+                <select name="authlevel" id="edit-user-auth" required style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); font-weight: 600; cursor: pointer; outline: none; transition: border-color 0.2s;">
+                    <option value="2">Lehrer (Standard)</option>
+                    <option value="1">Administrator</option>
+                </select>
+            </div>
+
+            <button type="submit" class="btn-primary-block">
+                <span>💾 Änderungen speichern</span>
+            </button>
+        </form>
+    </div>
+</div>
+
+<%- include('../partials/footer') %>

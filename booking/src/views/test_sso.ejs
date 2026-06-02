@@ -1,0 +1,53 @@
+<%- include('partials/header') %>
+
+<div class="test-sso-wrapper">
+    <div class="test-sso-card card">
+        <div class="test-sso-header">
+            <span class="test-sso-badge">🔐 SSO JWT Test-Generator 2026</span>
+            <h2>Passwortloser Login & Auto-Provisionierung</h2>
+            <p>
+                Hier können Sie den automatischen Registrierungs- und Authentifizierungsfluss des Raumbelegungsportals über ein künstlich erzeugtes JSON Web Token (JWT) lokal testen.
+            </p>
+        </div>
+        
+        <div class="test-sso-action">
+            <a href="<%= sso_link %>" class="btn-sso-test">
+                <span class="btn-icon">⚡</span>
+                <span>Als 'testlehrer' (Steffen Fleischer) per SSO einloggen</span>
+                <span class="btn-arrow">&rarr;</span>
+            </a>
+        </div>
+        
+        <div class="test-sso-details">
+            <div class="detail-section">
+                <h3>📋 Generierte JWT-Komponenten:</h3>
+                
+                <div class="code-grid">
+                    <div class="code-block-wrapper">
+                        <span class="code-label">Header (HS256)</span>
+                        <pre class="code-box"><%= headerStr %></pre>
+                    </div>
+                    
+                    <div class="code-block-wrapper">
+                        <span class="code-label">Payload (Claim Mapping)</span>
+                        <pre class="code-box"><%= payloadStr %></pre>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="detail-section">
+                <h3>🔑 Generierter JWT Token String:</h3>
+                <div class="code-block-wrapper token-wrapper">
+                    <span class="code-label">Vollständiges JWT Token</span>
+                    <pre class="code-box token-box"><%= jwt %></pre>
+                </div>
+            </div>
+        </div>
+        
+        <p class="test-sso-footer-text">
+            Hinweis: Dieses Modul simuliert die Schnittstelle des MSO-Portals und führt das Just-In-Time Provisioning vollautomatisch in der SQLite-Datenbank aus.
+        </p>
+    </div>
+</div>
+
+<%- include('partials/footer') %>
