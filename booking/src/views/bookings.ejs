@@ -36,18 +36,20 @@
                 </select>
             </div>
             
-            <!-- ⭐ Set Default Category Button Form -->
-            <form action="/bookings/set-default-category" method="POST" id="set-default-category-form" style="margin: 0; display: inline-flex; align-items: center;">
-                <input type="hidden" name="department_id" id="default-category-id" value="<%= room.department_id || '' %>">
-                <input type="hidden" name="redirect_to" value="/bookings?room_id=<%= room.room_id %>&date=<%= selectedDate %>">
-                <button type="submit" class="btn-edit-sm" id="btn-save-default-category" style="padding: 8px 12px; font-size: 13px; border-radius: 8px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); cursor: pointer; transition: all 0.2s;" title="Diese Kategorie als Ihren persönlichen Standard beim Öffnen festlegen">
-                    <% if (typeof userDefaultCategoryId !== 'undefined' && userDefaultCategoryId && userDefaultCategoryId == room.department_id) { %>
-                        ★ <span class="nav-text-desktop">Standard-Kat.</span>
-                    <% } else { %>
-                        ☆ <span class="nav-text-desktop">Als Standard</span>
-                    <% } %>
-                </button>
-            </form>
+            <!-- ⭐ Set Default Category Button Form (Admin only) -->
+            <% if (authlevel === 1) { %>
+                <form action="/bookings/set-default-category" method="POST" id="set-default-category-form" style="margin: 0; display: inline-flex; align-items: center;">
+                    <input type="hidden" name="department_id" id="default-category-id" value="<%= room.department_id || '' %>">
+                    <input type="hidden" name="redirect_to" value="/bookings?room_id=<%= room.room_id %>&date=<%= selectedDate %>">
+                    <button type="submit" class="btn-edit-sm" id="btn-save-default-category" style="padding: 8px 12px; font-size: 13px; border-radius: 8px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); cursor: pointer; transition: all 0.2s;" title="Diese Kategorie als systemweiten Standard beim Öffnen festlegen">
+                        <% if (typeof systemDefaultCategoryId !== 'undefined' && systemDefaultCategoryId && systemDefaultCategoryId == room.department_id) { %>
+                            ★ <span class="nav-text-desktop">Standard-Kat.</span>
+                        <% } else { %>
+                            ☆ <span class="nav-text-desktop">Als Standard</span>
+                        <% } %>
+                    </button>
+                </form>
+            <% } %>
 
             <form action="/bookings" method="GET" class="room-select-form" id="calendar-room-form" style="margin: 0;">
                 <label for="calendar-room-select" class="calendar-select-label" style="font-size: 13.5px; font-weight: 700; color: var(--text-muted); margin: 0;">Medium / Raum:</label>
