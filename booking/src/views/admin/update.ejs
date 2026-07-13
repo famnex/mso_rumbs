@@ -172,12 +172,12 @@
                     statusMsg.textContent = '✅ Update erfolgreich abgeschlossen. PM2 lädt neu...';
                     statusMsg.style.color = 'var(--success)';
 
-                    // Page Reload Countdown after pm2 reboots
+                    // Page Reload Countdown after pm2 reboots (reloads current page to check status)
                     let countdown = 4;
                     setInterval(() => {
                         countdown--;
                         if (countdown <= 0) {
-                            location.href = '/admin';
+                            location.href = window.location.pathname;
                         } else {
                             terminal.textContent = result.logs + `\n\n[Reload] Seite wird in ${countdown} Sekunden neu geladen...`;
                             terminal.scrollTop = terminal.scrollHeight;
