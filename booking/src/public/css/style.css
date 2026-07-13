@@ -209,6 +209,8 @@ body {
     border-radius: 24px;
     margin-bottom: 30px;
     box-shadow: var(--card-shadow);
+    position: relative;
+    z-index: 10000;
 }
 
 .brand-link {

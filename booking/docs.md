@@ -123,3 +123,45 @@ Der Wochenplaner (`bookings.ejs`) zeigt die Belegung für eine ausgewählte Kale
 *   **Renntauglicher Flash-Interzeptor:** Um das lästige Phänomen zu verhindern, dass Status- und Fehlermeldungen bei schnellen Redirect-Ketten (z.B. nach unberechtigten Zugriffen) „in der Pipeline hängenbleiben“ und mehrfach oder beim Neuladen angezeigt werden, fängt ein globales Middleware-System alle Session-Meldungen (`error` und `success`) sofort zu Beginn des Requests ab, bereinigt sie im Speicher und erzwingt einen synchronen Session-Save. Erst beim tatsächlichen Seitenvorgang werden die Meldungen transparent in EJS eingespeist, wodurch sie garantiert exakt einmal angezeigt werden.
 *   **Ergonomischer Schnellbucher:** Modale Dialoge werden mittels CSS-Transitions und Spring-Dämpfungs-Algorithmus geöffnet.
 *   **Native SSO-Simulation:** Über die URL `/test_sso.php` kann der gesamte SSO-Login- und Registrierungs-Ablauf direkt auf dem Node.js-Server simuliert und eingesehen werden.
+
+---
+
+## 7. Update- und Deployment-Prozess (PM2 & Git)
+
+Um das System auf dem Produktivserver mit den neuesten Änderungen aus GitHub zu aktualisieren, führen Sie folgende Schritte in der Konsole des Servers durch:
+
+### 1. Zum Server verbinden & in das Projektverzeichnis wechseln
+Verbinden Sie sich per SSH (oder Remotedesktop auf Windows) mit dem Server und wechseln Sie in das Installationsverzeichnis der Anwendung:
+```bash
+cd /pfad/zu/ihrem/mso_rumbs/booking
+```
+
+### 2. Neuesten Code aus GitHub abrufen
+Laden Sie die Änderungen aus dem Git-Repository herunter:
+```bash
+git pull
+```
+
+### 3. Abhängigkeiten aktualisieren (falls package.json geändert wurde)
+Falls neue Bibliotheken hinzugefügt wurden, installieren Sie diese:
+```bash
+npm install
+```
+
+### 4. Anwendung im PM2-Prozessmanager neu laden
+Damit der laufende Node.js-Prozess die neuen CSS-, EJS- und JS-Dateien einliest, führen Sie einen Reload durch. PM2 führt einen Zero-Downtime-Reload durch, wodurch Benutzer während des Updates nicht unterbrochen werden:
+```bash
+pm2 reload classroombookings
+```
+
+*Hinweis:* Wenn Sie die PM2-Konfiguration selbst anpassen oder neu einlesen möchten, können Sie auch das Ecosystem-File nutzen:
+```bash
+pm2 reload ecosystem.config.js
+```
+
+### Nützliche PM2-Befehle zur Kontrolle:
+*   Status prüfen: `pm2 status` oder `pm2 list`
+*   Live-Logs einsehen: `pm2 logs classroombookings`
+*   Prozess stoppen: `pm2 stop classroombookings`
+*   Prozess starten: `pm2 start ecosystem.config.js`
+
