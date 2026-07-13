@@ -1833,11 +1833,12 @@ body {
         font-size: 20px !important;
     }
     .brand-text {
-        font-size: 14px !important;
-        max-width: 120px !important;
-        white-space: nowrap !important;
-        overflow: hidden !important;
-        text-overflow: ellipsis !important;
+        font-size: 13.5px !important;
+        max-width: none !important;
+        white-space: normal !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+        line-height: 1.2 !important;
     }
     .main-nav {
         flex-direction: row !important;
