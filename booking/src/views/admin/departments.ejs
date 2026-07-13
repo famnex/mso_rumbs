@@ -30,6 +30,7 @@
             <table class="admin-list-table">
                 <thead>
                     <tr>
+                        <th style="width: 80px; text-align: center;">Standard</th>
                         <th>Symbol</th>
                         <th>Kategorie-Name</th>
                         <th>Beschreibung</th>
@@ -39,6 +40,16 @@
                 <tbody>
                     <% departments.forEach(d => { %>
                         <tr>
+                            <!-- Clickable Star for system-wide Default Category designation -->
+                            <td style="text-align: center; vertical-align: middle;">
+                                <form action="/bookings/set-default-category" method="POST" style="display: inline-block; margin: 0;">
+                                    <input type="hidden" name="department_id" value="<%= systemDefaultCategoryId == d.department_id ? '' : d.department_id %>">
+                                    <input type="hidden" name="redirect_to" value="/admin/departments">
+                                    <button type="submit" style="background: none; border: none; font-size: 22px; cursor: pointer; padding: 0; outline: none; color: <%= systemDefaultCategoryId == d.department_id ? '#f59e0b' : 'var(--text-muted)' %>; opacity: <%= systemDefaultCategoryId == d.department_id ? '1' : '0.5' %>; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center;" onmouseover="this.style.transform='scale(1.2)'; this.style.opacity='1';" onmouseout="this.style.transform='scale(1)'; this.style.opacity='<%= systemDefaultCategoryId == d.department_id ? '1' : '0.5' %>';" title="<%= systemDefaultCategoryId == d.department_id ? 'Systemweiten Standard aufheben' : 'Als systemweiten Standard festlegen' %>">
+                                        <%= systemDefaultCategoryId == d.department_id ? '★' : '☆' %>
+                                    </button>
+                                </form>
+                            </td>
                             <td style="font-size: 22px; width: 60px;">
                                 <% if (d.icon === 'computer') { %> 🖥️ <% } else if (d.icon === 'science') { %> 🔬 <% } else if (d.icon === 'sport') { %> 🏟️ <% } else { %> 🏷️ <% } %>
                             </td>

@@ -332,11 +332,16 @@ router.get('/admin/departments', requireAdmin, async (req, res) => {
         const schoolNameSetting = await dbQuery.get("SELECT value FROM settings WHERE name='name' LIMIT 1;");
         const schoolName = schoolNameSetting ? schoolNameSetting.value : 'Raumbelegung MSO';
 
+        // Fetch system-wide default category setting
+        const defaultCatSetting = await dbQuery.get("SELECT value FROM settings WHERE name='default_category_id' LIMIT 1;");
+        const systemDefaultCategoryId = (defaultCatSetting && defaultCatSetting.value) ? parseInt(defaultCatSetting.value) : null;
+
         res.render('admin/departments', {
             title: 'Kategorien verwalten',
             schoolName,
             displayName: req.session.displayName,
             departments,
+            systemDefaultCategoryId,
             error: req.session.error || null,
             success: req.session.success || null
         });
