@@ -91,9 +91,13 @@ app.use('/booking', express.static(path.join(__dirname, 'public')));
 // Database connector imports
 const { dbQuery } = require('./db');
 
-// Global Locals Middleware for Logged-In Users (Header dropdowns)
+// Global Locals Middleware for Logged-In Users (Header dropdowns & Global UI text settings)
 app.use(async (req, res, next) => {
     try {
+        // Fetch custom logout button text setting from DB
+        const logoutSetting = await dbQuery.get("SELECT value FROM settings WHERE name='logout_button_text' LIMIT 1;");
+        res.locals.logoutButtonText = logoutSetting ? logoutSetting.value : 'Abmelden';
+
         if (req.session && req.session.userId) {
             // Fetch all departments/categories
             res.locals.headerCategories = await dbQuery.all("SELECT * FROM departments ORDER BY name ASC;");
@@ -106,6 +110,7 @@ app.use(async (req, res, next) => {
         next();
     } catch (e) {
         console.error('Locals middleware error:', e);
+        res.locals.logoutButtonText = 'Abmelden';
         next();
     }
 });

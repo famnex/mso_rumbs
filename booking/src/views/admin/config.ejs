@@ -61,7 +61,17 @@
                 <span class="input-icon">🚪</span>
                 <input type="url" name="logout_redirect_url" id="logout_redirect_url" value="<%= jwtConfig.logout_redirect_url || '' %>" placeholder="z. B. https://portal.schule.de/launcher (leer lassen für Login-Bildschirm)" style="padding-left: 40px; width: 100%;">
             </div>
-            <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 4px;">Wenn ausgefüllt, werden Benutzer beim Klick auf "Abmelden" zu dieser URL (z. B. dem Portal-Dashboard) anstatt zum lokalen Login-Bildschirm weitergeleitet.</div>
+            <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 4px;">Wenn ausgefüllt, werden Benutzer beim Klick auf die Abmeldeschaltfläche zu dieser URL (z. B. dem Portal-Dashboard) anstatt zum lokalen Login-Bildschirm weitergeleitet.</div>
+        </div>
+
+        <!-- 3.6. Logout Button Text Customization -->
+        <div class="form-group" style="margin-bottom: 20px;">
+            <label for="logout_button_text">Beschriftung der "Abmelden"-Schaltfläche im Menü</label>
+            <div class="input-wrapper" style="position: relative;">
+                <span class="input-icon">📝</span>
+                <input type="text" name="logout_button_text" id="logout_button_text" value="<%= logoutButtonText %>" placeholder="Standard: Abmelden" style="padding-left: 40px; width: 100%;">
+            </div>
+            <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 4px;">Bestimmt den Text, der im Benutzer-Dropdown für die Abmeldung angezeigt wird. (Standard: 'Abmelden')</div>
         </div>
 
         <div class="form-row" style="margin-bottom: 20px;">

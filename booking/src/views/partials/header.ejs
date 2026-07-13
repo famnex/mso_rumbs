@@ -63,7 +63,7 @@
                             
                             <a href="/logout" class="dropdown-item logout-item">
                                 <span class="dropdown-icon">🚪</span>
-                                <span>Abmelden</span>
+                                <span><%= typeof logoutButtonText !== 'undefined' && logoutButtonText ? logoutButtonText : 'Abmelden' %></span>
                             </a>
                         </div>
                     </div>

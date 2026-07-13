@@ -882,11 +882,16 @@ router.get('/admin/config', requireAdmin, async (req, res) => {
         // Load active configuration in-memory
         const jwtConfig = authRouter.jwtConfig;
 
+        // Fetch custom logout button text
+        const logoutSetting = await dbQuery.get("SELECT value FROM settings WHERE name='logout_button_text' LIMIT 1;");
+        const logoutButtonText = logoutSetting ? logoutSetting.value : 'Abmelden';
+
         res.render('admin/config', {
             title: 'SSO & JWT Konfiguration',
             schoolName,
             displayName: req.session.displayName,
             jwtConfig,
+            logoutButtonText,
             error: req.session.error || null,
             success: req.session.success || null
         });
@@ -898,9 +903,9 @@ router.get('/admin/config', requireAdmin, async (req, res) => {
     }
 });
 
-// POST /admin/config (Save JWT SSO parameters)
+// POST /admin/config (Save JWT SSO parameters & UI text customizations)
 router.post('/admin/config', requireAdmin, async (req, res) => {
-    const { enabled, secret, sso_url, parameter_name, auto_create_user, default_authlevel, logout_redirect_url } = req.body;
+    const { enabled, secret, sso_url, parameter_name, auto_create_user, default_authlevel, logout_redirect_url, logout_button_text } = req.body;
 
     if (!secret || !sso_url) {
         req.session.error = 'JWT Secret und SSO Portal Login-URL sind erforderlich.';
@@ -930,7 +935,14 @@ router.post('/admin/config', requireAdmin, async (req, res) => {
         authRouter.jwtConfig.default_authlevel = config.default_authlevel;
         authRouter.jwtConfig.logout_redirect_url = config.logout_redirect_url;
 
-        req.session.success = 'SSO & JWT Konfiguration erfolgreich gespeichert und synchronisiert!';
+        // 3. Save custom logout button text setting
+        const logoutTextVal = (logout_button_text || 'Abmelden').trim();
+        await dbQuery.run(`
+            INSERT OR REPLACE INTO settings ("group", name, value)
+            VALUES ('crbs', 'logout_button_text', ?);
+        `, [logoutTextVal]);
+
+        req.session.success = 'Konfiguration und UI-Einstellungen erfolgreich gespeichert und synchronisiert!';
         res.redirect('/admin/config');
     } catch (e) {
         console.error('Admin save config error:', e);
