@@ -15,7 +15,7 @@
         <div class="stat-card card">
             <span class="stat-icon">🚪</span>
             <div class="stat-details">
-                <h4>Räume</h4>
+                <h4>Medien / Räume</h4>
                 <div class="stat-number"><%= stats.rooms %></div>
             </div>
         </div>
@@ -49,11 +49,11 @@
             <div class="room-card-header">
                 <span class="room-icon">🚪</span>
                 <div>
-                    <h4 style="font-size: 17px;">1. Räume verwalten</h4>
+                    <h4 style="font-size: 17px;">1. Medien / Räume verwalten</h4>
                     <span class="room-location">Ressourcen &amp; Sperren</span>
                 </div>
             </div>
-            <p class="room-notes" style="min-height: 50px;">Räume anlegen, Details pflegen, Sperrzustände einrichten und Raumverantwortliche zuweisen.</p>
+            <p class="room-notes" style="min-height: 50px;">Medien und Räume anlegen, Details pflegen, Sperrzustände einrichten und Verantwortliche zuweisen.</p>
             <div class="room-card-footer">
                 <span class="status-badge status-open">✓ Aktiv</span>
                 <span class="btn-arrow-link">Öffnen &rarr;</span>
@@ -133,7 +133,7 @@
                     <span class="room-location">Klassifizierung &amp; Struktur</span>
                 </div>
             </div>
-            <p class="room-notes" style="min-height: 50px;">Kategorien und Fachbereiche (Informatik, Sport, Biologie) zur Strukturierung von Räumen und Benutzern verwalten.</p>
+            <p class="room-notes" style="min-height: 50px;">Kategorien und Fachbereiche (Informatik, Sport, Biologie) zur Strukturierung von Medien / Räumen und Benutzern verwalten.</p>
             <div class="room-card-footer">
                 <span class="status-badge status-open">✓ Struktur</span>
                 <span class="btn-arrow-link">Öffnen &rarr;</span>
@@ -168,6 +168,22 @@
             <p class="room-notes" style="min-height: 50px;">Single Sign-On Anbindung konfigurieren, Shared Secrets, JIT-Registrierung und Weiterleitungsziele pflegen.</p>
             <div class="room-card-footer">
                 <span class="status-badge status-open" style="background: var(--warning-bg); color: var(--warning);">✓ Schnittstelle</span>
+                <span class="btn-arrow-link">Öffnen &rarr;</span>
+            </div>
+        </div>
+
+        <!-- System Update Portal -->
+        <div class="room-card card clickable" onclick="location.href='/admin/update'">
+            <div class="room-card-header">
+                <span class="room-icon">🔄</span>
+                <div>
+                    <h4 style="font-size: 17px;">9. Systemaktualisierung</h4>
+                    <span class="room-location">Sichere Git-Updates &amp; Logs</span>
+                </div>
+            </div>
+            <p class="room-notes" style="min-height: 50px;">Das System direkt aus der Oberfläche heraus aktualisieren (Git Pull, npm install, Syntax-Check &amp; PM2 Reload).</p>
+            <div class="room-card-footer">
+                <span class="status-badge status-open" style="background: rgba(59, 130, 246, 0.1); color: var(--primary);">✓ Update-Center</span>
                 <span class="btn-arrow-link">Öffnen &rarr;</span>
             </div>
         </div>

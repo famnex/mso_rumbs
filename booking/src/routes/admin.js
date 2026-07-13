@@ -62,7 +62,7 @@ router.get('/admin/rooms', requireAdmin, async (req, res) => {
         const schoolName = schoolNameSetting ? schoolNameSetting.value : 'Raumbelegung MSO';
 
         res.render('admin/rooms', {
-            title: 'Räume verwalten',
+            title: 'Medien / Räume verwalten',
             schoolName,
             displayName: req.session.displayName,
             rooms,
@@ -84,7 +84,7 @@ router.post('/admin/rooms/add', requireAdmin, async (req, res) => {
     const isBookable = bookable === '1' ? 1 : 0;
 
     if (!name) {
-        req.session.error = 'Der Raumname ist erforderlich.';
+        req.session.error = 'Der Name ist erforderlich.';
         return res.redirect('/admin/rooms');
     }
 
@@ -94,11 +94,11 @@ router.post('/admin/rooms/add', requireAdmin, async (req, res) => {
             "INSERT INTO rooms (name, department_id, notes, bookable, icon) VALUES (?, ?, ?, ?, 'computer')",
             [name, deptId, notes || '', isBookable]
         );
-        req.session.success = `Raum '${name}' erfolgreich angelegt!`;
+        req.session.success = `Medium / Raum '${name}' erfolgreich angelegt!`;
         res.redirect('/admin/rooms');
     } catch (e) {
         console.error('Admin add room error:', e);
-        req.session.error = 'Fehler beim Anlegen des Raumes.';
+        req.session.error = 'Fehler beim Anlegen des Objekts.';
         res.redirect('/admin/rooms');
     }
 });
@@ -108,7 +108,7 @@ router.post('/admin/rooms/delete', requireAdmin, async (req, res) => {
     const { room_id } = req.body;
 
     if (!room_id) {
-        req.session.error = 'Ungültige Raumnummer.';
+        req.session.error = 'Ungültige Objekt-ID.';
         return res.redirect('/admin/rooms');
     }
 
@@ -117,11 +117,11 @@ router.post('/admin/rooms/delete', requireAdmin, async (req, res) => {
         // Also cancel future bookings in this room
         await dbQuery.run("UPDATE bookings SET cancelled = 1 WHERE room_id = ?", [room_id]);
 
-        req.session.success = 'Raum erfolgreich gelöscht!';
+        req.session.success = 'Medium / Raum erfolgreich gelöscht!';
         res.redirect('/admin/rooms');
     } catch (e) {
         console.error('Admin delete room error:', e);
-        req.session.error = 'Fehler beim Löschen des Raumes.';
+        req.session.error = 'Fehler beim Löschen des Objekts.';
         res.redirect('/admin/rooms');
     }
 });
@@ -612,7 +612,7 @@ router.post('/admin/rooms/edit', requireAdmin, async (req, res) => {
     const { room_id, name, department_id, notes, bookable } = req.body;
     const isBookable = bookable === '1' ? 1 : 0;
     if (!room_id || !name) {
-        req.session.error = 'Raum-ID und Name sind erforderlich.';
+        req.session.error = 'Objekt-ID und Name sind erforderlich.';
         return res.redirect('/admin/rooms');
     }
     try {
@@ -621,11 +621,11 @@ router.post('/admin/rooms/edit', requireAdmin, async (req, res) => {
             "UPDATE rooms SET name = ?, department_id = ?, notes = ?, bookable = ? WHERE room_id = ?",
             [name, deptId, notes || '', isBookable, parseInt(room_id)]
         );
-        req.session.success = `Raum '${name}' erfolgreich aktualisiert!`;
+        req.session.success = `Medium / Raum '${name}' erfolgreich aktualisiert!`;
         res.redirect('/admin/rooms');
     } catch (e) {
         console.error('Admin edit room error:', e);
-        req.session.error = 'Fehler beim Aktualisieren des Raumes.';
+        req.session.error = 'Fehler beim Aktualisieren des Objekts.';
         res.redirect('/admin/rooms');
     }
 });
@@ -936,6 +936,124 @@ router.post('/admin/config', requireAdmin, async (req, res) => {
         console.error('Admin save config error:', e);
         req.session.error = 'Fehler beim Speichern der Konfiguration.';
         res.redirect('/admin/config');
+    }
+});
+
+// GET /admin/update (System Update Interface)
+router.get('/admin/update', requireAdmin, async (req, res) => {
+    try {
+        const schoolNameSetting = await dbQuery.get("SELECT value FROM settings WHERE name='name' LIMIT 1;");
+        const schoolName = schoolNameSetting ? schoolNameSetting.value : 'Raumbelegung MSO';
+
+        // Get current git info safely
+        const { execSync } = require('child_process');
+        let gitInfo = 'Unbekannt (Git nicht verfügbar)';
+        try {
+            gitInfo = execSync('git log -n 1 --oneline', { encoding: 'utf8' }).trim();
+        } catch (gitErr) {
+            console.warn('Git is not available or not initialized:', gitErr.message);
+        }
+
+        res.render('admin/update', {
+            title: 'Systemaktualisierung',
+            schoolName,
+            displayName: req.session.displayName,
+            gitInfo,
+            error: req.session.error || null,
+            success: req.session.success || null
+        });
+        req.session.error = null;
+        req.session.success = null;
+    } catch (e) {
+        console.error('Error loading update view:', e);
+        res.status(500).send('Interner Serverfehler.');
+    }
+});
+
+// POST /admin/update/run (Executes Git pull, npm install, Syntax validation, and PM2 reload with rollbacks)
+router.post('/admin/update/run', requireAdmin, async (req, res) => {
+    const { exec } = require('child_process');
+    const logs = [];
+
+    const runCmd = (cmd) => {
+        return new Promise((resolve, reject) => {
+            logs.push(`> ${cmd}`);
+            exec(cmd, { cwd: path.join(__dirname, '../..') }, (error, stdout, stderr) => {
+                if (stdout) logs.push(stdout);
+                if (stderr) logs.push(stderr);
+                if (error) {
+                    logs.push(`Befehl fehlgeschlagen mit Exit Code: ${error.code}`);
+                    reject(error);
+                } else {
+                    resolve();
+                }
+            });
+        });
+    };
+
+    try {
+        // Step 1: Pull from Git
+        logs.push('=== Schritt 1/4: Git Pull ===');
+        await runCmd('git pull');
+
+        // Step 2: Install potential new npm packages
+        logs.push('\n=== Schritt 2/4: Abhängigkeiten prüfen (npm install) ===');
+        await runCmd('npm install');
+
+        // Step 3: Crucial Syntax Verification Check
+        logs.push('\n=== Schritt 3/4: Syntax- & Integritätsprüfung ===');
+        try {
+            await runCmd('node --check src/index.js');
+            await runCmd('node --check src/db.js');
+            await runCmd('node --check src/routes/admin.js');
+        } catch (syntaxErr) {
+            logs.push('\n[KRITISCHER FEHLER] Syntaxprüfung fehlgeschlagen! Ein Update der Anwendung würde zum Systemabsturz führen.');
+            throw new Error('syntax_error');
+        }
+
+        // Step 4: All checks passed. Schedule reload
+        logs.push('\n=== Schritt 4/4: Bereit zum Neustart ===');
+        logs.push('Alle Tests erfolgreich abgeschlossen. PM2 Reload wird in 1,5 Sekunden ausgeführt...');
+
+        setTimeout(() => {
+            exec('pm2 reload classroombookings', (reloadErr, reloadStdout, reloadStderr) => {
+                if (reloadErr) {
+                    console.error('Failed to reload process in PM2:', reloadErr);
+                }
+            });
+        }, 1500);
+
+        return res.json({
+            success: true,
+            logs: logs.join('\n')
+        });
+
+    } catch (err) {
+        logs.push('\n=== [ROLLBACK] Starte automatische Systemwiederherstellung ===');
+        
+        try {
+            // Revert changes back to ORIG_HEAD
+            logs.push('> Rollback ausführen (git reset --hard ORIG_HEAD)...');
+            const { execSync } = require('child_process');
+            const repoPath = path.join(__dirname, '../..');
+            
+            execSync('git reset --hard ORIG_HEAD', { cwd: repoPath });
+            logs.push('Git-Repository erfolgreich zurückgesetzt.');
+
+            logs.push('> Abhängigkeiten wiederherstellen (npm install)...');
+            execSync('npm install', { cwd: repoPath });
+            logs.push('Bibliotheken erfolgreich wiederhergestellt.');
+            
+            logs.push('\n[Wiederhergestellt] Das System wurde erfolgreich auf den funktionierenden Zustand vor dem Update zurückgesetzt. Die Anwendung läuft stabil weiter.');
+        } catch (rollbackErr) {
+            logs.push(`\n[FATALER FEHLER] Rollback fehlgeschlagen: ${rollbackErr.message}`);
+            logs.push('Das System befindet sich in einem undefinierten Zustand. Ein manueller Eingriff ist notwendig.');
+        }
+
+        return res.json({
+            success: false,
+            logs: logs.join('\n')
+        });
     }
 });
 

@@ -1945,24 +1945,23 @@ body {
     }
     .modern-calendar {
         table-layout: fixed !important;
-        width: auto !important;
+        width: 100% !important;
         min-width: 0 !important;
         margin: 0 auto !important;
         border-collapse: collapse !important;
     }
-    /* Day columns: exactly 34px each */
+    /* Day columns: stretch to fill width, at least 34px */
     .modern-calendar thead tr th:not(.time-col),
     .modern-calendar tbody tr td:not(.time-col) {
-        width: 34px !important;
+        width: auto !important;
         min-width: 34px !important;
-        max-width: 34px !important;
         padding: 1px !important;
         text-align: center !important;
         vertical-align: middle !important;
         box-sizing: border-box !important;
         height: 48px !important;
     }
-    /* Time column: 46px */
+    /* Time column: exactly 46px */
     .modern-calendar .time-col {
         width: 46px !important;
         min-width: 46px !important;

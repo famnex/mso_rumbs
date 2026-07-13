@@ -1,0 +1,230 @@
+<%- include('../partials/header') %>
+
+<div class="calendar-header-bar card" style="margin-bottom: 24px;">
+    <div class="calendar-info">
+        <div class="calendar-breadcrumb">
+            <a href="/">Dashboard</a> &raquo; <a href="/admin">Systemsteuerung</a> &raquo; <strong>Systemaktualisierung</strong>
+        </div>
+        <h2>🔄 Systemaktualisierung</h2>
+    </div>
+    <div class="calendar-controls">
+        <a href="/admin" class="btn-nav-week" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none;">
+            <span>🛠️ Systemsteuerung</span>
+        </a>
+    </div>
+</div>
+
+<div class="card" style="max-width: 800px; margin: 0 auto; padding: 30px;">
+    <div style="margin-bottom: 24px; border-bottom: 1px solid var(--border-color); padding-bottom: 15px;">
+        <h3>🔄 Sicheres Git- & System-Update</h3>
+        <p class="card-desc">Aktualisieren Sie die Anwendung direkt aus der Web-Oberfläche. Vor der Übernahme der Änderungen führt das System eine automatische Syntax- und Integritätsprüfung durch. Sollte ein Fehler auftreten, wird das System automatisch zurückgerollt, sodass die Anwendung stabil weiterläuft.</p>
+    </div>
+
+    <div style="margin-bottom: 24px; background: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.2); padding: 15px; border-radius: 12px; font-size: 13.5px;">
+        <strong>Aktueller Git-Commit des Servers:</strong>
+        <code style="display: block; background: var(--input-bg); color: var(--text-main); padding: 8px 12px; border-radius: 8px; margin-top: 8px; font-family: monospace; font-size: 13px; border: 1px solid var(--border-color);">
+            <%= gitInfo %>
+        </code>
+    </div>
+
+    <!-- Progress Steps Tracker -->
+    <div class="update-steps" style="margin-bottom: 24px; display: flex; flex-direction: column; gap: 10px;">
+        <div class="step-item" id="step-git">
+            <span class="step-icon">⚪</span> <span>1. Git-Repository aktualisieren (git pull)</span>
+        </div>
+        <div class="step-item" id="step-npm">
+            <span class="step-icon">⚪</span> <span>2. Node-Abhängigkeiten prüfen (npm install)</span>
+        </div>
+        <div class="step-item" id="step-syntax">
+            <span class="step-icon">⚪</span> <span>3. Syntax- & Integritätscheck (node --check)</span>
+        </div>
+        <div class="step-item" id="step-reload">
+            <span class="step-icon">⚪</span> <span>4. PM2 Server-Neustart (Zero-Downtime)</span>
+        </div>
+    </div>
+
+    <!-- Web Terminal log output console -->
+    <div style="margin-bottom: 24px;">
+        <label style="font-weight: 700; font-size: 13.5px; color: var(--text-muted); display: block; margin-bottom: 8px;">Konsolenausgabe:</label>
+        <pre id="terminal-console" class="terminal-log">Bereit für die Ausführung...</pre>
+    </div>
+
+    <div id="update-action-container" style="display: flex; gap: 12px; align-items: center;">
+        <button id="btn-start-update" class="btn-primary-block" style="margin: 0; width: auto; padding: 12px 24px; border-radius: 14px;">
+            <span>🚀 Systemaktualisierung jetzt ausführen</span>
+        </button>
+        <span id="update-status-msg" style="font-weight: 700; font-size: 14px; color: var(--text-muted);"></span>
+    </div>
+</div>
+
+<style>
+    .terminal-log {
+        background: #0b0f19;
+        color: #10b981;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 12.5px;
+        padding: 16px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        max-height: 250px;
+        overflow-y: auto;
+        white-space: pre-wrap;
+        margin: 0;
+    }
+    [data-theme="light"] .terminal-log {
+        background: #0f172a;
+        color: #34d399;
+    }
+    .step-item {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-muted);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 6px 12px;
+        background: var(--input-bg);
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+        transition: all 0.2s ease;
+    }
+    .step-item.active {
+        border-color: var(--primary);
+        background: var(--primary-glow);
+        color: var(--primary);
+    }
+    .step-item.success {
+        border-color: var(--success);
+        background: rgba(16, 185, 129, 0.05);
+        color: var(--success);
+    }
+    .step-item.failed {
+        border-color: var(--danger);
+        background: rgba(239, 68, 68, 0.05);
+        color: var(--danger);
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const btnUpdate = document.getElementById('btn-start-update');
+        const terminal = document.getElementById('terminal-console');
+        const statusMsg = document.getElementById('update-status-msg');
+        
+        const stepGit = document.getElementById('step-git');
+        const stepNpm = document.getElementById('step-npm');
+        const stepSyntax = document.getElementById('step-syntax');
+        const stepReload = document.getElementById('step-reload');
+
+        if (!btnUpdate) return;
+
+        btnUpdate.addEventListener('click', async () => {
+            if (!confirm('Sind Sie sicher, dass Sie das System-Update jetzt ausführen möchten? Der Server lädt sich nach erfolgreichem Check neu.')) {
+                return;
+            }
+
+            btnUpdate.disabled = true;
+            btnUpdate.style.opacity = '0.5';
+            btnUpdate.style.cursor = 'not-allowed';
+            
+            terminal.textContent = 'Bereite Systemaktualisierung vor...\n';
+            statusMsg.textContent = '🔄 Update läuft...';
+            statusMsg.style.color = 'var(--primary)';
+
+            // Reset step UI
+            const steps = [stepGit, stepNpm, stepSyntax, stepReload];
+            steps.forEach(step => {
+                step.className = 'step-item';
+                step.querySelector('.step-icon').textContent = '⚪';
+            });
+
+            // Activate git pull step
+            stepGit.className = 'step-item active';
+            stepGit.querySelector('.step-icon').textContent = '🔄';
+
+            try {
+                // Post to trigger updating sequence
+                const response = await fetch('/admin/update/run', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                const result = await response.json();
+                
+                // Show console logs in terminal
+                terminal.textContent = result.logs;
+                terminal.scrollTop = terminal.scrollHeight; // Scroll to bottom
+
+                if (result.success) {
+                    // Mark steps as successful
+                    stepGit.className = 'step-item success';
+                    stepGit.querySelector('.step-icon').textContent = '✅';
+                    
+                    stepNpm.className = 'step-item success';
+                    stepNpm.querySelector('.step-icon').textContent = '✅';
+
+                    stepSyntax.className = 'step-item success';
+                    stepSyntax.querySelector('.step-icon').textContent = '✅';
+
+                    stepReload.className = 'step-item active';
+                    stepReload.querySelector('.step-icon').textContent = '🔄';
+
+                    statusMsg.textContent = '✅ Update erfolgreich abgeschlossen. PM2 lädt neu...';
+                    statusMsg.style.color = 'var(--success)';
+
+                    // Page Reload Countdown after pm2 reboots
+                    let countdown = 4;
+                    setInterval(() => {
+                        countdown--;
+                        if (countdown <= 0) {
+                            location.href = '/admin';
+                        } else {
+                            terminal.textContent = result.logs + `\n\n[Reload] Seite wird in ${countdown} Sekunden neu geladen...`;
+                            terminal.scrollTop = terminal.scrollHeight;
+                        }
+                    }, 1000);
+
+                } else {
+                    // One of the steps failed (Git pull, npm install or syntax validation), rollback executed
+                    statusMsg.textContent = '❌ Update fehlgeschlagen. Rollback ausgeführt!';
+                    statusMsg.style.color = 'var(--danger)';
+                    
+                    // Identify failure point based on logs
+                    if (result.logs.includes('Schritt 1/4') && result.logs.includes('Exit Code')) {
+                        stepGit.className = 'step-item failed';
+                        stepGit.querySelector('.step-icon').textContent = '❌';
+                    } else if (result.logs.includes('Schritt 2/4') && result.logs.includes('Exit Code')) {
+                        stepGit.className = 'step-item success';
+                        stepGit.querySelector('.step-icon').textContent = '✅';
+                        stepNpm.className = 'step-item failed';
+                        stepNpm.querySelector('.step-icon').textContent = '❌';
+                    } else {
+                        // Syntax error failure
+                        stepGit.className = 'step-item success';
+                        stepGit.querySelector('.step-icon').textContent = '✅';
+                        stepNpm.className = 'step-item success';
+                        stepNpm.querySelector('.step-icon').textContent = '✅';
+                        stepSyntax.className = 'step-item failed';
+                        stepSyntax.querySelector('.step-icon').textContent = '❌';
+                    }
+
+                    // Reset button to allow retry
+                    btnUpdate.disabled = false;
+                    btnUpdate.style.opacity = '1';
+                    btnUpdate.style.cursor = 'pointer';
+                }
+            } catch (err) {
+                console.error(err);
+                terminal.textContent += `\n[FEHLER] AJAX-Verbindungsfehler: ${err.message}`;
+                statusMsg.textContent = '❌ Netzwerk- / Verbindungsfehler.';
+                statusMsg.style.color = 'var(--danger)';
+                
+                btnUpdate.disabled = false;
+                btnUpdate.style.opacity = '1';
+                btnUpdate.style.cursor = 'pointer';
+            }
+        });
+    });
+</script>
+
+<%- include('../partials/footer') %>

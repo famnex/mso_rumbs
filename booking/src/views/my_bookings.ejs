@@ -32,7 +32,7 @@
             <table class="zebra-table" style="width: 100%; border-collapse: collapse; text-align: left;">
                 <thead>
                     <tr>
-                        <th style="padding: 16px; border-bottom: 2px solid var(--border-color); font-weight: 700; color: var(--text-muted);">🚪 Raum</th>
+                        <th style="padding: 16px; border-bottom: 2px solid var(--border-color); font-weight: 700; color: var(--text-muted);">🚪 Medium / Raum</th>
                         <th style="padding: 16px; border-bottom: 2px solid var(--border-color); font-weight: 700; color: var(--text-muted);">📅 Datum / Typ</th>
                         <th style="padding: 16px; border-bottom: 2px solid var(--border-color); font-weight: 700; color: var(--text-muted);">⏰ Stunde</th>
                         <th style="padding: 16px; border-bottom: 2px solid var(--border-color); font-weight: 700; color: var(--text-muted);">📝 Zweck / Klasse</th>
@@ -109,6 +109,28 @@
                     <% }) %>
                 </tbody>
             </table>
+
+            <!-- Pagination UI -->
+            <% if (totalPages > 1) { %>
+                <div class="pagination-container" style="display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border-color);">
+                    <% if (currentPage > 1) { %>
+                        <a href="/bookings/my-bookings?archive=<%= showArchive %>&page=<%= currentPage - 1 %>" class="btn-nav-week" style="padding: 8px 14px; text-decoration: none; display: inline-flex; align-items: center; font-size: 13px;">&larr; Zurück</a>
+                    <% } %>
+                    
+                    <% for (let i = 1; i <= totalPages; i++) { %>
+                        <% if (i === currentPage) { %>
+                            <span class="tab-btn active-tab" style="padding: 8px 14px; border-radius: 8px; font-weight: 700; font-size: 13px;"><%= i %></span>
+                        <% } else { %>
+                            <a href="/bookings/my-bookings?archive=<%= showArchive %>&page=<%= i %>" class="tab-btn" style="padding: 8px 14px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 13px;"><%= i %></a>
+                        <% } %>
+                    <% } %>
+
+                    <% if (currentPage < totalPages) { %>
+                        <a href="/bookings/my-bookings?archive=<%= showArchive %>&page=<%= currentPage + 1 %>" class="btn-nav-week" style="padding: 8px 14px; text-decoration: none; display: inline-flex; align-items: center; font-size: 13px;">Weiter &rarr;</a>
+                    <% } %>
+                </div>
+            <% } %>
+
         <% } else { %>
             <div style="text-align: center; padding: 60px 20px;">
                 <div style="font-size: 52px; margin-bottom: 20px;">📅</div>

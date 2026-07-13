@@ -3,9 +3,9 @@
 <div class="calendar-header-bar card" style="margin-bottom: 24px;">
     <div class="calendar-info">
         <div class="calendar-breadcrumb">
-            <a href="/">Dashboard</a> &raquo; <a href="/admin">Systemsteuerung</a> &raquo; <strong>Räume verwalten</strong>
+            <a href="/">Dashboard</a> &raquo; <a href="/admin">Systemsteuerung</a> &raquo; <strong>Medien / Räume verwalten</strong>
         </div>
-        <h2>🚪 Räume verwalten</h2>
+        <h2>🚪 Medien / Räume verwalten</h2>
     </div>
     <div class="calendar-controls">
         <a href="/admin" class="btn-nav-week" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none;">
@@ -17,12 +17,25 @@
 <div class="card">
     <div class="card-header-with-action">
         <div>
-            <h3>🚪 Vorhandene Räume</h3>
-            <p class="card-desc">Übersicht aller im System angelegten Räume.</p>
+            <h3>🚪 Vorhandene Medien / Räume</h3>
+            <p class="card-desc">Übersicht aller im System angelegten Medien und Räume.</p>
         </div>
         <button class="btn-action-trigger" onclick="openModal('add-room-modal')">
-            <span>➕ Neuen Raum anlegen</span>
+            <span>➕ Neues Medium / Raum anlegen</span>
         </button>
+    </div>
+
+    <!-- Category Filter for Admins -->
+    <div style="margin-bottom: 20px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+        <span style="font-weight: 700; font-size: 13.5px; color: var(--text-muted);">Kategorie filtern:</span>
+        <select id="admin-category-filter" style="padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); font-size: 13.5px; font-weight: 600; cursor: pointer; outline: none; min-width: 180px;">
+            <option value="">-- Alle --</option>
+            <% if (typeof departments !== 'undefined' && departments && departments.length) { %>
+                <% departments.forEach(dept => { %>
+                    <option value="<%= dept.department_id %>"><%= dept.name %></option>
+                <% }) %>
+            <% } %>
+        </select>
     </div>
 
     <div class="table-responsive">
@@ -30,7 +43,7 @@
             <thead>
                 <tr>
                     <th>ID</th>
-                    <th>Raum</th>
+                    <th>Medium / Raum</th>
                     <th>Kategorie / Fachbereich</th>
                     <th>Notiz / Ausstattung</th>
                     <th>Status</th>
@@ -40,7 +53,7 @@
             <tbody>
                 <% if (rooms && rooms.length) { %>
                     <% rooms.forEach(room => { %>
-                        <tr>
+                        <tr data-dept-id="<%= room.department_id || '' %>">
                             <td><%= room.room_id %></td>
                             <td><strong><%= room.name %></strong></td>
                             <td><span style="font-weight: 600;"><%= room.department_name || 'Keine' %></span></td>
@@ -54,7 +67,7 @@
                                 <button class="btn-edit-sm" onclick="openEditRoomModal('<%= room.room_id %>', '<%= room.name %>', '<%= room.department_id || '' %>', '<%= room.notes || '' %>', '<%= room.bookable %>')">
                                     ✏️ Bearbeiten
                                 </button>
-                                <form action="/admin/rooms/delete" method="POST" onsubmit="return confirm('Möchten Sie diesen Raum wirklich löschen? Alle zugehörigen Buchungen werden storniert!');" style="display:inline;">
+                                <form action="/admin/rooms/delete" method="POST" onsubmit="return confirm('Möchten Sie dieses Medium / diesen Raum wirklich löschen? Alle zugehörigen Buchungen werden storniert!');" style="display:inline;">
                                     <input type="hidden" name="room_id" value="<%= room.room_id %>">
                                     <button type="submit" class="btn-danger-sm">🗑️ Löschen</button>
                                 </form>
@@ -63,7 +76,7 @@
                     <% }) %>
                 <% } else { %>
                     <tr>
-                        <td colspan="6" class="text-center">Keine Räume vorhanden.</td>
+                        <td colspan="6" class="text-center">Keine Medien / Räume vorhanden.</td>
                     </tr>
                 <% } %>
             </tbody>
@@ -75,15 +88,15 @@
 <div id="add-room-modal" class="modal-overlay hidden" onclick="closeModal('add-room-modal')">
     <div class="modal-card card" onclick="event.stopPropagation()">
         <div class="modal-header">
-            <h3>🆕 Raum hinzufügen</h3>
+            <h3>🆕 Medium / Raum hinzufügen</h3>
             <button class="btn-close-modal" onclick="closeModal('add-room-modal')">&times;</button>
         </div>
-        <p class="modal-desc">Geben Sie die Raumdetails ein, um ihn dem System hinzuzufügen.</p>
+        <p class="modal-desc">Geben Sie die Objektdetails ein, um das Medium / den Raum dem System hinzuzufügen.</p>
         
         <form action="/admin/rooms/add" method="POST" class="modern-form compact">
             <div class="form-group">
-                <label for="room-name">Raumname / Nummer</label>
-                <input type="text" name="name" id="room-name" placeholder="z. B. R 101, Computerraum" required>
+                <label for="room-name">Name (Medium / Raum)</label>
+                <input type="text" name="name" id="room-name" placeholder="z. B. R 101, Computerraum, iPad-Koffer A" required>
             </div>
 
             <div class="form-group">
@@ -109,7 +122,7 @@
             </div>
 
             <button type="submit" class="btn-primary-block">
-                <span>➕ Raum erstellen</span>
+                <span>➕ Medium / Raum erstellen</span>
             </button>
         </form>
     </div>
@@ -119,16 +132,16 @@
 <div id="edit-room-modal" class="modal-overlay hidden" onclick="closeModal('edit-room-modal')">
     <div class="modal-card card" onclick="event.stopPropagation()">
         <div class="modal-header">
-            <h3>✏️ Raum bearbeiten</h3>
+            <h3>✏️ Medium / Raum bearbeiten</h3>
             <button class="btn-close-modal" onclick="closeModal('edit-room-modal')">&times;</button>
         </div>
-        <p class="modal-desc">Passen Sie die Raumdetails an.</p>
+        <p class="modal-desc">Passen Sie die Details an.</p>
         
         <form action="/admin/rooms/edit" method="POST" class="modern-form compact">
             <input type="hidden" name="room_id" id="edit-room-id">
             
             <div class="form-group">
-                <label for="edit-room-name">Raumname / Nummer</label>
+                <label for="edit-room-name">Name (Medium / Raum)</label>
                 <input type="text" name="name" id="edit-room-name" required>
             </div>
 
@@ -161,4 +174,28 @@
     </div>
 </div>
 
-<%- include('../partials/footer') %>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const filterSelect = document.getElementById('admin-category-filter');
+        if (filterSelect) {
+            filterSelect.addEventListener('change', (e) => {
+                const selectedDeptId = e.target.value;
+                const rows = document.querySelectorAll('.zebra-table tbody tr');
+                rows.forEach(row => {
+                    // Check if it's the empty state row
+                    if (row.cells.length === 1 && row.cells[0].classList.contains('text-center')) {
+                        return;
+                    }
+                    const rowDeptId = row.getAttribute('data-dept-id');
+                    if (!selectedDeptId || rowDeptId === selectedDeptId) {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+            });
+        }
+    });
+</script>
+
+<%- include('../partials/header') %>

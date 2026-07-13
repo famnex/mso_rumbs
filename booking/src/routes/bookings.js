@@ -25,11 +25,18 @@ router.get('/bookings', requireLogin, async (req, res) => {
     
     if (!roomId) {
         try {
-            const firstRoom = await dbQuery.get("SELECT room_id FROM rooms WHERE bookable = 1 ORDER BY name ASC LIMIT 1;");
+            const user = await dbQuery.get("SELECT department_id FROM users WHERE user_id = ?", [req.session.userId]);
+            let firstRoom = null;
+            if (user && user.department_id) {
+                firstRoom = await dbQuery.get("SELECT room_id FROM rooms WHERE department_id = ? AND bookable = 1 ORDER BY name ASC LIMIT 1;", [user.department_id]);
+            }
+            if (!firstRoom) {
+                firstRoom = await dbQuery.get("SELECT room_id FROM rooms WHERE bookable = 1 ORDER BY name ASC LIMIT 1;");
+            }
             if (firstRoom) {
                 return res.redirect(`/bookings?room_id=${firstRoom.room_id}${selectedDate ? '&date=' + selectedDate : ''}`);
             } else {
-                return res.status(500).send('Keine buchbaren Räume im System vorhanden.');
+                return res.status(500).send('Keine buchbaren Medien / Räume im System vorhanden.');
             }
         } catch (e) {
             console.error('Error finding first room:', e);
@@ -134,6 +141,10 @@ router.get('/bookings', requireLogin, async (req, res) => {
             holidayMap[dateStr] = matchingHoliday ? matchingHoliday.name : null;
         }
 
+        // Fetch logged in user's default category
+        const loggedInUser = await dbQuery.get("SELECT department_id FROM users WHERE user_id = ?", [req.session.userId]);
+        const userDefaultCategoryId = loggedInUser ? loggedInUser.department_id : null;
+
         res.render('bookings', {
             title: 'Belegungsplan',
             schoolName,
@@ -153,6 +164,7 @@ router.get('/bookings', requireLogin, async (req, res) => {
             nextWeek: nextWeekDate.toISOString().split('T')[0],
             gridBookings,
             holidayMap,
+            userDefaultCategoryId,
             loadBookingScript: true,
             error: req.session.error || null,
             success: req.session.success || null
@@ -165,6 +177,20 @@ router.get('/bookings', requireLogin, async (req, res) => {
         console.error('Bookings load error:', e);
         res.status(500).send('Interner Serverfehler.');
     }
+});
+
+// POST /bookings/set-default-category (Set default category for current user)
+router.post('/bookings/set-default-category', requireLogin, async (req, res) => {
+    const { department_id, redirect_to } = req.body;
+    try {
+        const deptId = department_id ? parseInt(department_id) : null;
+        await dbQuery.run("UPDATE users SET department_id = ? WHERE user_id = ?", [deptId, req.session.userId]);
+        req.session.success = 'Standard-Kategorie erfolgreich aktualisiert!';
+    } catch (e) {
+        console.error('Error saving default category:', e);
+        req.session.error = 'Fehler beim Speichern der Standard-Kategorie.';
+    }
+    res.redirect(redirect_to || '/bookings');
 });
 
 // POST /bookings/add (Dynamic Grid Booking / Quick Booking & Timetable Blockings)
@@ -320,14 +346,37 @@ router.post('/bookings/edit', requireLogin, async (req, res) => {
     }
 });
 
-// GET /bookings/my-bookings (View Logged-in User's Bookings - Future / Archive)
+// GET /bookings/my-bookings (View Logged-in User's Bookings - Future / Archive with limit-50 pagination)
 router.get('/bookings/my-bookings', requireLogin, async (req, res) => {
     const showArchive = req.query.archive === 'true';
     const today = new Date().toISOString().split('T')[0];
+    
+    let page = parseInt(req.query.page) || 1;
+    if (page < 1) page = 1;
+    const limit = 50;
+    const offset = (page - 1) * limit;
 
     try {
         const schoolNameSetting = await dbQuery.get("SELECT value FROM settings WHERE name='name' LIMIT 1;");
         const schoolName = schoolNameSetting ? schoolNameSetting.value : 'Raumbelegung MSO';
+
+        let countResult;
+        if (showArchive) {
+            countResult = await dbQuery.get(`
+                SELECT COUNT(*) as count 
+                FROM bookings b
+                WHERE b.user_id = ? AND b.cancelled = 0 AND b.date < ? AND b.date IS NOT NULL
+            `, [req.session.userId, today]);
+        } else {
+            countResult = await dbQuery.get(`
+                SELECT COUNT(*) as count 
+                FROM bookings b
+                WHERE b.user_id = ? AND b.cancelled = 0 AND (b.date >= ? OR b.date IS NULL)
+            `, [req.session.userId, today]);
+        }
+
+        const totalBookings = countResult.count;
+        const totalPages = Math.ceil(totalBookings / limit) || 1;
 
         let bookings = [];
         if (showArchive) {
@@ -338,8 +387,9 @@ router.get('/bookings/my-bookings', requireLogin, async (req, res) => {
                 JOIN periods p ON b.period_id = p.period_id
                 LEFT JOIN weeks w ON b.week_id = w.week_id
                 WHERE b.user_id = ? AND b.cancelled = 0 AND b.date < ? AND b.date IS NOT NULL
-                ORDER BY b.date DESC, p.time_start DESC;
-            `, [req.session.userId, today]);
+                ORDER BY b.date DESC, p.time_start DESC
+                LIMIT ? OFFSET ?;
+            `, [req.session.userId, today, limit, offset]);
         } else {
             bookings = await dbQuery.all(`
                 SELECT b.*, r.name as room_name, p.name as period_name, p.time_start, p.time_end, w.name as week_name 
@@ -348,8 +398,9 @@ router.get('/bookings/my-bookings', requireLogin, async (req, res) => {
                 JOIN periods p ON b.period_id = p.period_id
                 LEFT JOIN weeks w ON b.week_id = w.week_id
                 WHERE b.user_id = ? AND b.cancelled = 0 AND (b.date >= ? OR b.date IS NULL)
-                ORDER BY b.date ASC, p.time_start ASC, b.day_num ASC;
-            `, [req.session.userId, today]);
+                ORDER BY b.date ASC, p.time_start ASC, b.day_num ASC
+                LIMIT ? OFFSET ?;
+            `, [req.session.userId, today, limit, offset]);
         }
 
         res.render('my_bookings', {
@@ -360,6 +411,8 @@ router.get('/bookings/my-bookings', requireLogin, async (req, res) => {
             currentUserId: req.session.userId,
             bookings,
             showArchive,
+            currentPage: page,
+            totalPages,
             error: req.session.error || null,
             success: req.session.success || null
         });

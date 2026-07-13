@@ -83,6 +83,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const selectedDeptId = e.target.value;
             filterCalRooms(selectedDeptId);
             
+            // Synchronize the default category form input value
+            const defaultCatInput = document.getElementById('default-category-id');
+            if (defaultCatInput) {
+                defaultCatInput.value = selectedDeptId;
+            }
+            
             // If currently selected room is not in the newly selected category, select the first visible room and reload
             const activeOpt = calRoomSelect.querySelector(`option[value="${calRoomSelect.value}"]`);
             if (activeOpt && activeOpt.disabled) {

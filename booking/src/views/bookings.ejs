@@ -23,8 +23,8 @@
 
     <!-- Cascading Room Selectors (Category -> Room) -->
     <div class="calendar-controls">
-        <div class="calendar-selectors">
-            <div class="calendar-select-wrapper">
+        <div class="calendar-selectors" style="display: flex; align-items: center; gap: 8px;">
+            <div class="calendar-select-wrapper" style="display: flex; align-items: center;">
                 <span class="calendar-select-label" style="font-size: 13.5px; font-weight: 700; color: var(--text-muted);">Kategorie:</span>
                 <select id="calendar-category-select" style="padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); font-size: 13.5px; font-weight: 600; cursor: pointer; outline: none; transition: border-color 0.2s;">
                     <option value="">-- Alle --</option>
@@ -35,8 +35,22 @@
                     <% } %>
                 </select>
             </div>
+            
+            <!-- ⭐ Set Default Category Button Form -->
+            <form action="/bookings/set-default-category" method="POST" id="set-default-category-form" style="margin: 0; display: inline-flex; align-items: center;">
+                <input type="hidden" name="department_id" id="default-category-id" value="<%= room.department_id || '' %>">
+                <input type="hidden" name="redirect_to" value="/bookings?room_id=<%= room.room_id %>&date=<%= selectedDate %>">
+                <button type="submit" class="btn-edit-sm" id="btn-save-default-category" style="padding: 8px 12px; font-size: 13px; border-radius: 8px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); cursor: pointer; transition: all 0.2s;" title="Diese Kategorie als Ihren persönlichen Standard beim Öffnen festlegen">
+                    <% if (typeof userDefaultCategoryId !== 'undefined' && userDefaultCategoryId && userDefaultCategoryId == room.department_id) { %>
+                        ★ <span class="nav-text-desktop">Standard-Kat.</span>
+                    <% } else { %>
+                        ☆ <span class="nav-text-desktop">Als Standard</span>
+                    <% } %>
+                </button>
+            </form>
+
             <form action="/bookings" method="GET" class="room-select-form" id="calendar-room-form" style="margin: 0;">
-                <label for="calendar-room-select" class="calendar-select-label" style="font-size: 13.5px; font-weight: 700; color: var(--text-muted); margin: 0;">Raum:</label>
+                <label for="calendar-room-select" class="calendar-select-label" style="font-size: 13.5px; font-weight: 700; color: var(--text-muted); margin: 0;">Medium / Raum:</label>
                 <select name="room_id" id="calendar-room-select" onchange="this.form.submit()" style="padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); font-size: 13.5px; font-weight: 600; cursor: pointer; outline: none; transition: border-color 0.2s;">
                     <% allRooms.forEach(r => { %>
                         <option value="<%= r.room_id %>" data-dept="<%= r.department_id || '' %>" <%= r.room_id == room.room_id ? 'selected' : '' %>>
@@ -229,7 +243,7 @@
 <div id="booking-modal" class="modal-overlay hidden" onclick="closeBookingModal(event)">
     <div class="modal-card card" onclick="event.stopPropagation()">
         <div class="modal-header">
-            <h3>🏫 Raum reservieren</h3>
+            <h3>🏫 Medium / Raum reservieren</h3>
             <button class="btn-close-modal" onclick="closeBookingModal(force=true)">&times;</button>
         </div>
         <p class="modal-desc">Füllen Sie die Details aus, um Ihre Belegung abzuschließen.</p>
@@ -241,7 +255,7 @@
 
             <div class="form-row">
                 <div class="form-group">
-                    <label>Raum</label>
+                    <label>Medium / Raum</label>
                     <input type="text" id="modal-room-name" readonly class="input-readonly">
                 </div>
                 <div class="form-group">
@@ -301,7 +315,7 @@
         <div class="modern-form compact">
             <div class="form-row" style="margin-bottom: 12px;">
                 <div class="form-group" style="margin-bottom: 0;">
-                    <label>Raum</label>
+                    <label>Medium / Raum</label>
                     <input type="text" id="detail-room-name" readonly class="input-readonly" style="padding: 10px;">
                 </div>
                 <div class="form-group" style="margin-bottom: 0;">
@@ -349,7 +363,7 @@
 
             <div class="form-row" style="margin-bottom: 12px;">
                 <div class="form-group" style="margin-bottom: 0;">
-                    <label>Raum</label>
+                    <label>Medium / Raum</label>
                     <input type="text" id="admin-edit-booking-room-name" readonly class="input-readonly" style="padding: 10px;">
                 </div>
                 <div class="form-group" style="margin-bottom: 0;">
@@ -408,7 +422,7 @@
 
             <div class="form-row" style="margin-bottom: 12px;">
                 <div class="form-group" style="margin-bottom: 0;">
-                    <label>Raum</label>
+                    <label>Medium / Raum</label>
                     <input type="text" id="admin-edit-tt-room-name" readonly class="input-readonly" style="padding: 10px;">
                 </div>
                 <div class="form-group" style="margin-bottom: 0;">
