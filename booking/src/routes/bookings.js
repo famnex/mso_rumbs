@@ -25,10 +25,12 @@ router.get('/bookings', requireLogin, async (req, res) => {
     
     if (!roomId) {
         try {
-            const user = await dbQuery.get("SELECT department_id FROM users WHERE user_id = ?", [req.session.userId]);
+            // Load global default category setting
+            const defaultCatSetting = await dbQuery.get("SELECT value FROM settings WHERE name='default_category_id' LIMIT 1;");
             let firstRoom = null;
-            if (user && user.department_id) {
-                firstRoom = await dbQuery.get("SELECT room_id FROM rooms WHERE department_id = ? AND bookable = 1 ORDER BY name ASC LIMIT 1;", [user.department_id]);
+            if (defaultCatSetting && defaultCatSetting.value) {
+                const defaultCatId = parseInt(defaultCatSetting.value);
+                firstRoom = await dbQuery.get("SELECT room_id FROM rooms WHERE department_id = ? AND bookable = 1 ORDER BY name ASC LIMIT 1;", [defaultCatId]);
             }
             if (!firstRoom) {
                 firstRoom = await dbQuery.get("SELECT room_id FROM rooms WHERE bookable = 1 ORDER BY name ASC LIMIT 1;");
@@ -141,9 +143,9 @@ router.get('/bookings', requireLogin, async (req, res) => {
             holidayMap[dateStr] = matchingHoliday ? matchingHoliday.name : null;
         }
 
-        // Fetch logged in user's default category
-        const loggedInUser = await dbQuery.get("SELECT department_id FROM users WHERE user_id = ?", [req.session.userId]);
-        const userDefaultCategoryId = loggedInUser ? loggedInUser.department_id : null;
+        // Fetch system-wide default category setting
+        const defaultCatSetting = await dbQuery.get("SELECT value FROM settings WHERE name='default_category_id' LIMIT 1;");
+        const systemDefaultCategoryId = (defaultCatSetting && defaultCatSetting.value) ? parseInt(defaultCatSetting.value) : null;
 
         res.render('bookings', {
             title: 'Belegungsplan',
@@ -164,7 +166,7 @@ router.get('/bookings', requireLogin, async (req, res) => {
             nextWeek: nextWeekDate.toISOString().split('T')[0],
             gridBookings,
             holidayMap,
-            userDefaultCategoryId,
+            systemDefaultCategoryId,
             loadBookingScript: true,
             error: req.session.error || null,
             success: req.session.success || null
@@ -179,15 +181,26 @@ router.get('/bookings', requireLogin, async (req, res) => {
     }
 });
 
-// POST /bookings/set-default-category (Set default category for current user)
+// POST /bookings/set-default-category (Set default category - Admin only setting)
 router.post('/bookings/set-default-category', requireLogin, async (req, res) => {
     const { department_id, redirect_to } = req.body;
+    
+    // Authorization check: Admins only
+    if (req.session.authlevel !== 1) {
+        req.session.error = 'Zugriff verweigert. Nur Administratoren dürfen die Standard-Kategorie festlegen.';
+        return res.redirect('/bookings');
+    }
+
     try {
-        const deptId = department_id ? parseInt(department_id) : null;
-        await dbQuery.run("UPDATE users SET department_id = ? WHERE user_id = ?", [deptId, req.session.userId]);
-        req.session.success = 'Standard-Kategorie erfolgreich aktualisiert!';
+        const deptVal = department_id ? department_id.toString() : '';
+        // Insert or replace in the settings table
+        await dbQuery.run(`
+            INSERT OR REPLACE INTO settings ("group", name, value)
+            VALUES ('crbs', 'default_category_id', ?);
+        `, [deptVal]);
+        req.session.success = 'Systemweite Standard-Kategorie erfolgreich aktualisiert!';
     } catch (e) {
-        console.error('Error saving default category:', e);
+        console.error('Error saving default category setting:', e);
         req.session.error = 'Fehler beim Speichern der Standard-Kategorie.';
     }
     res.redirect(redirect_to || '/bookings');
