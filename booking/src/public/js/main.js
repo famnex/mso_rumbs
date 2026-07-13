@@ -107,6 +107,7 @@ window.openModal = function(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
         modal.classList.remove('hidden');
+        document.body.classList.add('modal-open');
         // ESC key listener for modal closing
         const escListener = (e) => {
             if (e.key === 'Escape') {
@@ -120,7 +121,14 @@ window.openModal = function(modalId) {
 
 window.closeModal = function(modalId) {
     const modal = document.getElementById(modalId);
-    if (modal) modal.classList.add('hidden');
+    if (modal) {
+        modal.classList.add('hidden');
+        // Disable body scroll lock if no other modal is visible
+        const visibleModals = document.querySelectorAll('.modal-overlay:not(.hidden)');
+        if (visibleModals.length === 0) {
+            document.body.classList.remove('modal-open');
+        }
+    }
 };
 
 // Vorkonfigurierte Voreinstellungen für die Bearbeitungs-Modale

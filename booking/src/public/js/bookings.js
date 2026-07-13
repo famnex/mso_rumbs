@@ -20,6 +20,7 @@ function openBookingModal(roomId, roomName, periodId, periodName, dateStr) {
 
     // Reveal modal with a smooth micro-animation scaling
     modal.classList.remove('hidden');
+    document.body.classList.add('modal-open');
     
     // Focus the notes input directly
     setTimeout(() => {
@@ -37,6 +38,12 @@ function closeBookingModal(event = null, force = false) {
 
     // Hide modal
     modal.classList.add('hidden');
+    
+    // Disable body scroll lock if no other modal is visible
+    const visibleModals = document.querySelectorAll('.modal-overlay:not(.hidden)');
+    if (visibleModals.length === 0) {
+        document.body.classList.remove('modal-open');
+    }
     
     // Reset values safely
     const notesInput = document.getElementById('modal-notes');
@@ -129,12 +136,18 @@ function openDetailModal(roomName, periodName, dateStr, userStr, notesStr) {
     document.getElementById('detail-date-formatted').value = dateFormatted;
 
     modal.classList.remove('hidden');
+    document.body.classList.add('modal-open');
 }
 
 function closeDetailModal() {
     const modal = document.getElementById('detail-modal');
     if (modal) {
         modal.classList.add('hidden');
+        // Disable body scroll lock if no other modal is visible
+        const visibleModals = document.querySelectorAll('.modal-overlay:not(.hidden)');
+        if (visibleModals.length === 0) {
+            document.body.classList.remove('modal-open');
+        }
     }
 }
 
