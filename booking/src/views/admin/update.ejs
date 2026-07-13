@@ -142,9 +142,8 @@
             stepGit.className = 'step-item active';
             stepGit.querySelector('.step-icon').textContent = '🔄';
 
-            try {
-                // Post to trigger updating sequence
-                const response = await fetch('/admin/update/run', {
+                // Post to trigger updating sequence dynamically relative to the current subpath location
+                const response = await fetch(window.location.pathname + '/run', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' }
                 });
