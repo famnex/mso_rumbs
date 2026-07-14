@@ -2,6 +2,7 @@ const express = require('express');
 const session = require('express-session');
 const path = require('path');
 const fs = require('fs');
+const sqlite3 = require('sqlite3');
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -13,12 +14,12 @@ require('./db');
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
-// Session Middleware (Persistent SQLite Session Store to prevent memory leak warning in production)
+// Session Middleware (Persistent SQLite Session Store using initialized sqlite3 Database instance)
 const SQLiteStore = require('connect-sqlite3')(session);
+const sessionDb = new sqlite3.Database(path.join(__dirname, '../local/sessions.db'));
 app.use(session({
     store: new SQLiteStore({
-        db: 'sessions.db',
-        dir: path.join(__dirname, '../local'),
+        db: sessionDb,
         concurrentDb: true
     }),
     secret: 'classroombookings-node-2026-secret-key',
