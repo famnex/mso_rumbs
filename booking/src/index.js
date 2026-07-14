@@ -13,8 +13,14 @@ require('./db');
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
-// Session Middleware
+// Session Middleware (Persistent SQLite Session Store to prevent memory leak warning in production)
+const SQLiteStore = require('connect-sqlite3')(session);
 app.use(session({
+    store: new SQLiteStore({
+        db: 'sessions.db',
+        dir: path.join(__dirname, '../local'),
+        concurrentDb: true
+    }),
     secret: 'classroombookings-node-2026-secret-key',
     resave: false,
     saveUninitialized: false,
