@@ -160,15 +160,14 @@ document.addEventListener('keydown', (e) => {
 
 // Calendar Page: Redirect when a new date is selected via week-datepicker-input
 document.addEventListener('DOMContentLoaded', () => {
-    const trigger = document.getElementById('week-datepicker-trigger');
     const input = document.getElementById('week-datepicker-input');
-    if (trigger && input) {
-        // Trigger showPicker when clicking anywhere on the week badge
-        trigger.addEventListener('click', () => {
+    if (input) {
+        // Force opening picker on click anywhere on the input (especially Chrome desktop text area)
+        // Since pointer-events: auto is active, this click handler is triggered directly by the user on the input,
+        // which iOS Safari permits under its user-gesture security policies.
+        input.addEventListener('click', () => {
             if (typeof input.showPicker === 'function') {
                 input.showPicker();
-            } else {
-                input.click();
             }
         });
 
