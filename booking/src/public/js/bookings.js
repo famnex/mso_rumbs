@@ -160,8 +160,18 @@ document.addEventListener('keydown', (e) => {
 
 // Calendar Page: Redirect when a new date is selected via week-datepicker-input
 document.addEventListener('DOMContentLoaded', () => {
+    const trigger = document.getElementById('week-datepicker-trigger');
     const input = document.getElementById('week-datepicker-input');
-    if (input) {
+    if (trigger && input) {
+        // Trigger showPicker when clicking anywhere on the week badge
+        trigger.addEventListener('click', () => {
+            if (typeof input.showPicker === 'function') {
+                input.showPicker();
+            } else {
+                input.click();
+            }
+        });
+
         input.addEventListener('change', (e) => {
             const selectedDate = e.target.value;
             if (selectedDate) {

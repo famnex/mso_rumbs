@@ -76,7 +76,7 @@
         <span class="nav-badge-desktop">📅 Woche vom <strong><%= mondayStr %></strong> <%= typeof weekName !== 'undefined' && weekName ? `(${weekName})` : '' %></span>
         <span class="nav-badge-mobile">📅 <strong><%= mondayStr %></strong></span>
         <!-- Hidden input covering the badge to trigger native datepicker -->
-        <input type="date" id="week-datepicker-input" value="<%= selectedDate %>" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; border: none; padding: 0; z-index: 10; -webkit-appearance: none;">
+        <input type="date" id="week-datepicker-input" value="<%= selectedDate %>" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; border: none; padding: 0; z-index: 10; -webkit-appearance: none; pointer-events: none;">
     </div>
     <a href="/bookings?room_id=<%= room.room_id %>&date=<%= nextWeek %>" class="btn-nav-week">
         <span class="nav-text-desktop">Nächste Woche &rarr;</span>
