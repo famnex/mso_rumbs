@@ -157,3 +157,18 @@ document.addEventListener('keydown', (e) => {
         closeDetailModal();
     }
 });
+
+// Calendar Page: Redirect when a new date is selected via week-datepicker-input
+document.addEventListener('DOMContentLoaded', () => {
+    const input = document.getElementById('week-datepicker-input');
+    if (input) {
+        input.addEventListener('change', (e) => {
+            const selectedDate = e.target.value;
+            if (selectedDate) {
+                const urlParams = new URLSearchParams(window.location.search);
+                const roomId = urlParams.get('room_id') || '';
+                window.location.href = `${window.location.pathname}?room_id=${roomId}&date=${selectedDate}`;
+            }
+        });
+    }
+});
