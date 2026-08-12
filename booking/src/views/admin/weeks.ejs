@@ -20,6 +20,33 @@
         <h3>📅 Kalenderwochen zuordnen</h3>
         <p class="card-desc">Ordnen Sie jeden Montag im laufenden Schuljahr einem Wochentyp (Ungerade / Gerade Woche) zu. Dies steuert den automatischen Wechsel der Regelunterrichts-Dauerbuchungen im Kalender.</p>
         
+        <% if (weeks && weeks.length >= 2 && mondays && mondays.length) { %>
+            <div style="margin-bottom: 16px; padding: 12px 16px; background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 12px;">
+                <h4 style="margin: 0 0 6px 0; font-size: 13.5px; display: flex; align-items: center; gap: 8px;">
+                    <span>⚡ Schnellausfüllung: Abwechselnde Wochen (Ungerade / Gerade)</span>
+                </h4>
+                <p style="margin: 0 0 10px 0; font-size: 12px; color: var(--text-muted);">
+                    Weist alle <%= mondays.length %> Wochen des Schuljahres automatisch im Wechsel zu (z. B. Ungerade Woche, Gerade Woche, Ungerade Woche...).
+                </p>
+                <form action="/admin/weeks/autoassign" method="POST" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;" onsubmit="return confirm('Möchten Sie wirklich das gesamte Schuljahr mit diesem Turnus belegen? Bestehende Zuordnungen werden überschrieben.');">
+                    <select name="week_id_1" required style="padding: 7px 10px; border-radius: 8px; font-size: 12.5px; font-weight: 600; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main);">
+                        <% weeks.forEach((w, idx) => { %>
+                            <option value="<%= w.week_id %>" <%= idx === 0 ? 'selected' : '' %>><%= w.name %> (1. Woche)</option>
+                        <% }) %>
+                    </select>
+                    <span style="font-weight: bold; color: var(--text-muted);">➔</span>
+                    <select name="week_id_2" required style="padding: 7px 10px; border-radius: 8px; font-size: 12.5px; font-weight: 600; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main);">
+                        <% weeks.forEach((w, idx) => { %>
+                            <option value="<%= w.week_id %>" <%= idx === 1 ? 'selected' : '' %>><%= w.name %> (2. Woche)</option>
+                        <% }) %>
+                    </select>
+                    <button type="submit" class="btn-primary" style="padding: 7px 14px; font-size: 12px; border-radius: 8px; cursor: pointer; white-space: nowrap;">
+                        ⚡ Gesamtes Schuljahr automatisch abwechselnd belegen
+                    </button>
+                </form>
+            </div>
+        <% } %>
+
         <% if (mondays && mondays.length) { %>
             <div style="max-height: 520px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 12px; padding: 10px; background: rgba(0, 0, 0, 0.02);">
                 <table class="zebra-table" style="margin-top:0; border:none; background:none;">
@@ -38,9 +65,9 @@
                             <tr>
                                 <td><strong><%= formattedDate %></strong></td>
                                 <td>
-                                    <form action="/admin/weeks/assign" method="POST" style="margin:0; display:flex; align-items:center; gap:10px;">
+                                    <form action="/admin/weeks/assign" method="POST" style="margin:0; display:flex; align-items:center; gap:10px;" onsubmit="return false;">
                                         <input type="hidden" name="date" value="<%= m %>">
-                                        <select name="week_id" onchange="this.form.submit()" style="padding: 8px 12px; border-radius: 8px; font-size: 13px; font-weight:600; min-width: 220px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); cursor: pointer; outline: none;">
+                                        <select name="week_id" onchange="assignWeekAjax(this, '<%= m %>')" style="padding: 8px 12px; border-radius: 8px; font-size: 13px; font-weight:600; min-width: 220px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); cursor: pointer; outline: none; transition: opacity 0.2s;">
                                             <option value="">-- Keine (Ferien/Feiertag) --</option>
                                             <% weeks.forEach(w => { %>
                                                 <option value="<%= w.week_id %>" <%= currentMappedWeekId == w.week_id ? 'selected' : '' %>>
@@ -48,6 +75,7 @@
                                                 </option>
                                             <% }) %>
                                         </select>
+                                        <span id="save-status-<%= m %>" style="font-size: 12px; font-weight: 600; color: #10b981; opacity: 0; transition: opacity 0.3s; pointer-events: none;">✓ Gespeichert</span>
                                         <noscript>
                                             <button type="submit" class="btn-success-sm" style="padding: 4px 8px;">Speichern</button>
                                         </noscript>
@@ -181,5 +209,42 @@
         </form>
     </div>
 </div>
+
+<script>
+async function assignWeekAjax(selectElem, dateStr) {
+    const statusSpan = document.getElementById('save-status-' + dateStr);
+    const weekId = selectElem.value;
+
+    selectElem.style.opacity = '0.5';
+
+    try {
+        const response = await fetch('/admin/weeks/assign', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: new URLSearchParams({ date: dateStr, week_id: weekId })
+        });
+
+        const data = await response.json();
+        selectElem.style.opacity = '1';
+
+        if (data && data.success) {
+            if (statusSpan) {
+                statusSpan.style.opacity = '1';
+                setTimeout(() => {
+                    statusSpan.style.opacity = '0';
+                }, 1500);
+            }
+        } else {
+            alert('Fehler beim Speichern: ' + (data ? data.error : 'Unbekannter Fehler'));
+        }
+    } catch (err) {
+        selectElem.style.opacity = '1';
+        console.error('AJAX assign week error:', err);
+    }
+}
+</script>
 
 <%- include('../partials/footer') %>

@@ -623,10 +623,13 @@ router.post('/admin/weeks/add', requireAdmin, async (req, res) => {
     }
 });
 
-// POST /admin/weeks/assign (Instant mapping select menu)
+// POST /admin/weeks/assign (Instant mapping select menu with AJAX support)
 router.post('/admin/weeks/assign', requireAdmin, async (req, res) => {
     const { date, week_id } = req.body;
+    const isAjax = req.headers['x-requested-with'] === 'XMLHttpRequest' || (req.headers.accept && req.headers.accept.includes('application/json'));
+
     if (!date) {
+        if (isAjax) return res.status(400).json({ success: false, error: 'Datum erforderlich.' });
         req.session.error = 'Datum erforderlich.';
         return res.redirect('/admin/weeks');
     }
@@ -638,11 +641,69 @@ router.post('/admin/weeks/assign', requireAdmin, async (req, res) => {
             await dbQuery.run("INSERT INTO weekdates (week_id, date) VALUES (?, ?)", [parseInt(week_id), date]);
         }
         
+        if (isAjax) {
+            return res.json({ success: true, message: 'Wochenzuordnung gespeichert.' });
+        }
+
         req.session.success = `Wochenzuordnung für Montag (${new Date(date).toLocaleDateString('de-DE')}) erfolgreich aktualisiert!`;
         res.redirect('/admin/weeks');
     } catch (e) {
         console.error('Admin assign week error:', e);
+        if (isAjax) return res.status(500).json({ success: false, error: e.message || 'Fehler beim Speichern' });
         req.session.error = 'Fehler beim Speichern der Wochenzuordnung.';
+        res.redirect('/admin/weeks');
+    }
+});
+
+// POST /admin/weeks/autoassign (Bulk auto-assign alternating week types for the entire academic year)
+router.post('/admin/weeks/autoassign', requireAdmin, async (req, res) => {
+    const { week_id_1, week_id_2 } = req.body;
+    if (!week_id_1 || !week_id_2) {
+        req.session.error = 'Bitte wählen Sie zwei Wochentypen für die Abwechslung aus.';
+        return res.redirect('/admin/weeks');
+    }
+
+    try {
+        const academicyear = await dbQuery.get("SELECT * FROM academicyears LIMIT 1;");
+        if (!academicyear || !academicyear.date_start || !academicyear.date_end) {
+            req.session.error = 'Legen Sie zuerst ein Schuljahr mit Start- und Enddatum fest.';
+            return res.redirect('/admin/weeks');
+        }
+
+        // Calculate all Mondays between date_start and date_end
+        const startParts = academicyear.date_start.split('-');
+        const endParts = academicyear.date_end.split('-');
+        const start = new Date(startParts[0], startParts[1] - 1, startParts[2]);
+        const end = new Date(endParts[0], endParts[1] - 1, endParts[2]);
+        
+        // Adjust start to the first Monday on or after start date
+        const day = start.getDay();
+        const mondayOffset = day === 0 ? 1 : (day === 1 ? 0 : 8 - day);
+        start.setDate(start.getDate() + mondayOffset);
+
+        const mondays = [];
+        const curr = new Date(start);
+        while (curr <= end) {
+            mondays.push(curr.toISOString().split('T')[0]);
+            curr.setDate(curr.getDate() + 7);
+        }
+
+        const id1 = parseInt(week_id_1);
+        const id2 = parseInt(week_id_2);
+
+        for (let i = 0; i < mondays.length; i++) {
+            const mDate = mondays[i];
+            const assignedWeekId = (i % 2 === 0) ? id1 : id2;
+            
+            await dbQuery.run("DELETE FROM weekdates WHERE date = ?", [mDate]);
+            await dbQuery.run("INSERT INTO weekdates (week_id, date) VALUES (?, ?)", [assignedWeekId, mDate]);
+        }
+
+        req.session.success = `Erfolgreich ${mondays.length} Wochen des Schuljahres abwechselnd belegt!`;
+        res.redirect('/admin/weeks');
+    } catch (e) {
+        console.error('Auto assign error:', e);
+        req.session.error = 'Fehler bei der automatischen Wochenzuweisung: ' + (e.message || e);
         res.redirect('/admin/weeks');
     }
 });
