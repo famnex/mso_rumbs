@@ -56,6 +56,42 @@
     </div>
 </div>
 
+<% if (typeof isOutsideAcademicYear !== 'undefined' && isOutsideAcademicYear) { %>
+    <div style="margin-bottom: 16px; padding: 12px 18px; border-radius: 14px; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.3); color: var(--text-main); font-size: 13.5px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 18px;">⚠️</span>
+            <div>
+                <strong>Hinweis zum Schuljahr:</strong> Diese Kalenderwoche liegt außerhalb des aktuell eingestellten Schuljahres 
+                <% if (typeof academicYear !== 'undefined' && academicYear && academicYear.date_start && academicYear.date_end) { %>
+                    (<%= academicYear.date_start.split('-').reverse().join('.') %> – <%= academicYear.date_end.split('-').reverse().join('.') %>).
+                <% } else { %>
+                    .
+                <% } %>
+                Dauerbuchungen mit A/B-Turnus werden hier nicht angezeigt.
+            </div>
+        </div>
+        <% if (authlevel === 1) { %>
+            <a href="/admin/weeks" class="btn-secondary" style="font-size: 12.5px; padding: 6px 12px; border-radius: 8px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+                ⚙️ Schuljahr / Wochentypen anpassen
+            </a>
+        <% } %>
+    </div>
+<% } else if (typeof weeks !== 'undefined' && weeks && weeks.length > 0 && typeof weekName !== 'undefined' && !weekName) { %>
+    <div style="margin-bottom: 16px; padding: 12px 18px; border-radius: 14px; background: rgba(59, 130, 246, 0.12); border: 1px solid rgba(59, 130, 246, 0.3); color: var(--text-main); font-size: 13.5px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 18px;">ℹ️</span>
+            <div>
+                <strong>Hinweis zum Wochentyp:</strong> Dieser Kalenderwoche wurde noch kein Turnus (z. B. A-Woche oder B-Woche) zugewiesen.
+            </div>
+        </div>
+        <% if (authlevel === 1) { %>
+            <a href="/admin/weeks" class="btn-secondary" style="font-size: 12.5px; padding: 6px 12px; border-radius: 8px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+                ⚙️ Wochentyp zuweisen
+            </a>
+        <% } %>
+    </div>
+<% } %>
+
 <!-- Week Navigation Bar -->
 <div class="week-navigation">
     <a href="/bookings?room_id=<%= room.room_id %>&date=<%= prevWeek %>" class="btn-nav-week">

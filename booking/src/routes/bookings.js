@@ -148,9 +148,9 @@ router.get('/bookings', requireLogin, async (req, res) => {
             holidayMap[dateStr] = matchingHoliday ? matchingHoliday.name : null;
         }
 
-        // Fetch system-wide default category setting
-        const defaultCatSetting = await dbQuery.get("SELECT value FROM settings WHERE name='default_category_id' LIMIT 1;");
-        const systemDefaultCategoryId = (defaultCatSetting && defaultCatSetting.value) ? parseInt(defaultCatSetting.value) : null;
+        // Fetch active academic year
+        const academicYear = await dbQuery.get("SELECT * FROM academicyears LIMIT 1;");
+        const isOutsideAcademicYear = academicYear ? (weekDates[4] < academicYear.date_start || weekDates[0] > academicYear.date_end) : false;
 
         res.render('bookings', {
             title: 'Belegungsplan',
@@ -172,6 +172,8 @@ router.get('/bookings', requireLogin, async (req, res) => {
             gridBookings,
             bookingRows,
             holidayMap,
+            academicYear,
+            isOutsideAcademicYear,
             systemDefaultCategoryId,
             loadBookingScript: true,
             error: req.session.error || null,
