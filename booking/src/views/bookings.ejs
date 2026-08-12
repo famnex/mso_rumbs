@@ -219,7 +219,7 @@
 
                                     <% if (isMine || authlevel === 1) { %>
                                         <div class="slot-actions-bar" style="display: flex; gap: 4px; align-items: center; justify-content: flex-end; margin-top: 4px;" onclick="event.stopPropagation()">
-                                            <button type="button" class="btn-slot-cancel" style="background: rgba(59, 130, 246, 0.15); color: #3b82f6; border-color: rgba(59, 130, 246, 0.3);" title="Buchung bearbeiten"
+                                            <button type="button" class="btn-slot-cancel btn-edit-booking-trigger" style="background: rgba(59, 130, 246, 0.15); color: #3b82f6; border-color: rgba(59, 130, 246, 0.3);" title="Buchung bearbeiten"
                                                 data-booking-id="<%= booking.booking_id %>"
                                                 data-notes="<%= booking.notes || '' %>"
                                                 data-room-name="<%= room.name %>"
@@ -281,7 +281,7 @@
 
                                     <% if (authlevel === 1) { %>
                                         <div class="slot-actions-bar" style="display: flex; gap: 4px; align-items: center; justify-content: flex-end; margin-top: 4px;" onclick="event.stopPropagation()">
-                                            <button type="button" class="btn-slot-cancel" style="background: rgba(59, 130, 246, 0.15); color: #3b82f6; border-color: rgba(59, 130, 246, 0.3);" title="Dauerbuchung bearbeiten"
+                                            <button type="button" class="btn-slot-cancel btn-edit-booking-trigger" style="background: rgba(59, 130, 246, 0.15); color: #3b82f6; border-color: rgba(59, 130, 246, 0.3);" title="Dauerbuchung bearbeiten"
                                                 data-booking-id="<%= timetable.booking_id %>"
                                                 data-notes="<%= timetable.notes || 'Unterricht' %>"
                                                 data-room-name="<%= room.name %>"

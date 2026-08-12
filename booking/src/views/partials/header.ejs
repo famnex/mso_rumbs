@@ -7,12 +7,38 @@
     <title><%= title %> | <%= schoolName %></title>
     <link rel="stylesheet" href="/css/style.css">
     
-    <!-- Inline CSS to support immediate theme rendering (prevents flash of light theme in dark mode) -->
+    <!-- Inline JS to support immediate theme rendering and global button handlers -->
     <script>
         (function() {
             const savedTheme = localStorage.getItem('theme') || 'light';
             document.documentElement.setAttribute('data-theme', savedTheme);
         })();
+
+        window.handleEditBtnClick = function(event, btn) {
+            if (event) {
+                event.stopPropagation();
+                event.preventDefault();
+            }
+            if (!btn) return;
+            const ds = btn.dataset || {};
+            if (typeof window.openEditBookingModal === 'function') {
+                window.openEditBookingModal(
+                    ds.bookingId,
+                    ds.notes || '',
+                    ds.roomName || '',
+                    ds.periodName || '',
+                    ds.date || '',
+                    ds.isTimetable === 'true',
+                    ds.weekId || '',
+                    ds.dateStart || '',
+                    ds.dateEnd || '',
+                    ds.userName || '',
+                    ds.redirectTo || ''
+                );
+            } else {
+                console.warn('openEditBookingModal is not defined yet');
+            }
+        };
     </script>
 </head>
 <body>

@@ -283,3 +283,11 @@ window.openEditWeekModal = function(id, name) {
     document.getElementById('edit-week-name').value = name;
     openModal('edit-week-modal');
 };
+
+// Document-level click listener for edit booking trigger buttons
+document.addEventListener('click', (e) => {
+    const trigger = e.target.closest('.btn-edit-booking-trigger');
+    if (trigger) {
+        window.handleEditBtnClick(e, trigger);
+    }
+});
