@@ -14,6 +14,75 @@
             document.documentElement.setAttribute('data-theme', savedTheme);
         })();
 
+        window.openEditBookingModal = function(bookingId, notes, roomName, periodName, dateStr, isTimetable = false, weekId = '', dateStart = '', dateEnd = '', userName = '', redirectTo = '') {
+            try {
+                const modal = document.getElementById('edit-booking-modal');
+                if (!modal) {
+                    console.error('Modal #edit-booking-modal not found');
+                    return;
+                }
+
+                if (document.getElementById('edit-booking-id')) document.getElementById('edit-booking-id').value = bookingId || '';
+                if (document.getElementById('edit-booking-notes')) document.getElementById('edit-booking-notes').value = notes || '';
+                if (document.getElementById('edit-booking-room-name')) document.getElementById('edit-booking-room-name').value = roomName || 'Raum';
+                if (document.getElementById('edit-booking-period-name')) document.getElementById('edit-booking-period-name').value = periodName || 'Unterrichtsstunde';
+
+                if (document.getElementById('edit-booking-redirect-to')) {
+                    document.getElementById('edit-booking-redirect-to').value = redirectTo || '';
+                }
+
+                const isTT = (isTimetable === true || isTimetable === 'true');
+
+                const titleElem = document.getElementById('edit-booking-modal-title');
+                if (titleElem) {
+                    titleElem.textContent = isTT ? '✏️ Dauerbuchung bearbeiten' : '✏️ Reservierung bearbeiten';
+                }
+
+                const userElem = document.getElementById('edit-booking-user');
+                if (userElem) {
+                    userElem.value = userName || 'Sie selbst';
+                }
+
+                const dateFormattedElem = document.getElementById('edit-booking-date-formatted');
+                if (dateFormattedElem) {
+                    if (dateStr && dateStr.split('-').length === 3) {
+                        const parts = dateStr.split('-');
+                        const dateObj = new Date(parts[0], parts[1] - 1, parts[2]);
+                        dateFormattedElem.value = isTT ? (dateObj.toLocaleDateString('de-DE', { weekday: 'long' }) + 's') : dateObj.toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
+                    } else {
+                        dateFormattedElem.value = dateStr || (isTT ? 'Stundenplan' : 'Datum');
+                    }
+                }
+
+                const ttGroup = document.getElementById('edit-timetable-fields-group');
+                if (ttGroup) {
+                    if (isTT) {
+                        ttGroup.classList.remove('hidden');
+                        const weekSelect = document.getElementById('edit-booking-week-id');
+                        if (weekSelect) weekSelect.value = weekId || '';
+
+                        const dateStartInput = document.getElementById('edit-booking-date-start');
+                        if (dateStartInput) dateStartInput.value = dateStart || dateStr || '';
+
+                        const dateEndInput = document.getElementById('edit-booking-date-end');
+                        if (dateEndInput) dateEndInput.value = dateEnd || '';
+                    } else {
+                        ttGroup.classList.add('hidden');
+                    }
+                }
+
+                modal.classList.remove('hidden');
+                document.body.classList.add('modal-open');
+
+                setTimeout(() => {
+                    const notesInput = document.getElementById('edit-booking-notes');
+                    if (notesInput) notesInput.focus();
+                }, 50);
+            } catch (err) {
+                console.error('Error opening edit booking modal:', err);
+            }
+        };
+
         window.handleEditBtnClick = function(event, btn) {
             if (event) {
                 event.stopPropagation();
@@ -21,23 +90,19 @@
             }
             if (!btn) return;
             const ds = btn.dataset || {};
-            if (typeof window.openEditBookingModal === 'function') {
-                window.openEditBookingModal(
-                    ds.bookingId,
-                    ds.notes || '',
-                    ds.roomName || '',
-                    ds.periodName || '',
-                    ds.date || '',
-                    ds.isTimetable === 'true',
-                    ds.weekId || '',
-                    ds.dateStart || '',
-                    ds.dateEnd || '',
-                    ds.userName || '',
-                    ds.redirectTo || ''
-                );
-            } else {
-                console.warn('openEditBookingModal is not defined yet');
-            }
+            window.openEditBookingModal(
+                ds.bookingId,
+                ds.notes || '',
+                ds.roomName || '',
+                ds.periodName || '',
+                ds.date || '',
+                ds.isTimetable === 'true',
+                ds.weekId || '',
+                ds.dateStart || '',
+                ds.dateEnd || '',
+                ds.userName || '',
+                ds.redirectTo || ''
+            );
         };
     </script>
 </head>
