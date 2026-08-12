@@ -103,11 +103,6 @@ function toggleBookingTypeFields(type) {
 function checkModalCollisions() {
     const bookingTypeSelect = document.getElementById('modal-booking-type');
     const bookingType = bookingTypeSelect ? bookingTypeSelect.value : 'single';
-    const weekSelect = document.getElementById('modal-week-id');
-    const targetWeekId = (weekSelect && weekSelect.value) ? parseInt(weekSelect.value) : null;
-    const dateStr = document.getElementById('modal-date') ? document.getElementById('modal-date').value : '';
-    const roomId = document.getElementById('modal-room-id') ? parseInt(document.getElementById('modal-room-id').value) : null;
-    const periodId = document.getElementById('modal-period-id') ? parseInt(document.getElementById('modal-period-id').value) : null;
 
     const collisionInfo = document.getElementById('modal-collision-info');
     const collisionDetails = document.getElementById('modal-collision-details');
@@ -115,9 +110,32 @@ function checkModalCollisions() {
     const overwriteCheckbox = document.getElementById('modal-overwrite');
     const submitBtn = document.getElementById('modal-submit-btn');
 
-    if (!collisionInfo || !submitBtn) return;
+    if (!submitBtn) return;
 
-    // Read stored bookings array
+    // Requirement 1: If single booking, hide collision warning & overwrite checkbox completely, enable submit button
+    if (bookingType !== 'timetable') {
+        if (collisionInfo) collisionInfo.classList.add('hidden');
+        if (overwriteContainer) overwriteContainer.classList.add('hidden');
+        if (overwriteCheckbox) overwriteCheckbox.checked = false;
+
+        submitBtn.disabled = false;
+        submitBtn.style.opacity = '1';
+        submitBtn.style.cursor = 'pointer';
+        submitBtn.removeAttribute('title');
+        return;
+    }
+
+    // Evaluate collision ONLY for timetable bookings
+    const weekSelect = document.getElementById('modal-week-id');
+    const targetWeekId = (weekSelect && weekSelect.value) ? parseInt(weekSelect.value) : null;
+    const dateStr = document.getElementById('modal-date') ? document.getElementById('modal-date').value : '';
+    const dateStartVal = document.getElementById('modal-date-start') && document.getElementById('modal-date-start').value ? document.getElementById('modal-date-start').value : dateStr;
+    const dateEndVal = document.getElementById('modal-date-end') ? document.getElementById('modal-date-end').value : '';
+
+    const roomId = document.getElementById('modal-room-id') ? parseInt(document.getElementById('modal-room-id').value) : null;
+    const periodId = document.getElementById('modal-period-id') ? parseInt(document.getElementById('modal-period-id').value) : null;
+
+    // Read stored room bookings array
     const bookings = window.currentRoomBookings || [];
 
     // Determine day_num (1 = Mon, ..., 5 = Fri) for dateStr
@@ -130,75 +148,78 @@ function checkModalCollisions() {
         }
     }
 
-    const dateStartVal = document.getElementById('modal-date-start') ? document.getElementById('modal-date-start').value : dateStr;
-    const dateEndVal = document.getElementById('modal-date-end') ? document.getElementById('modal-date-end').value : '';
-
     let conflictingBooking = null;
 
-    if (bookingType === 'timetable') {
-        // Check collision for timetable booking
-        conflictingBooking = bookings.find(b => {
-            if (b.period_id !== periodId) return false;
-            if (b.day_num !== dayNum) return false;
-            
-            // If existing is single-date booking
-            if (b.date) {
-                if (dateStartVal && b.date < dateStartVal) return false;
-                if (dateEndVal && b.date > dateEndVal) return false;
-                return true;
-            }
-            // If existing is timetable block
-            if (b.date === null) {
-                if (!targetWeekId || !b.week_id || b.week_id === targetWeekId) {
-                    if (dateStartVal && b.date_end && b.date_end < dateStartVal) return false;
-                    if (dateEndVal && b.date_start && b.date_start > dateEndVal) return false;
-                    return true;
-                }
-            }
-            return false;
-        });
-    } else {
-        // Check collision for single booking
-        conflictingBooking = bookings.find(b => {
-            if (b.period_id !== periodId) return false;
-            if (b.date === dateStr) return true;
-            if (b.date === null && b.day_num === dayNum) {
-                // Check if timetable block date range covers dateStr
-                if (b.date_start && b.date_start > dateStr) return false;
-                if (b.date_end && b.date_end < dateStr) return false;
-                return true;
-            }
-            return false;
-        });
-    }
+    conflictingBooking = bookings.find(b => {
+        if (b.period_id !== periodId) return false;
+        if (b.day_num !== dayNum) return false;
 
-    if (conflictingBooking) {
-        // Conflict found!
-        const userName = conflictingBooking.displayname || conflictingBooking.username || 'Unbekannt';
-        const noteText = conflictingBooking.notes ? ` (Zweck: "${conflictingBooking.notes}")` : '';
-        let typeInfo = '';
-        if (conflictingBooking.date) {
-            typeInfo = `Einzelbuchung am ${conflictingBooking.date}`;
-        } else if (conflictingBooking.week_name) {
-            typeInfo = `Stundenplaneintrag [${conflictingBooking.week_name}]`;
-        } else {
-            typeInfo = `Stundenplaneintrag [Jede Woche]`;
+        // Check Turnus compatibility (if target has specific turnus, e.g. A-Woche, and existing has different specific turnus, e.g. B-Woche, no collision!)
+        if (targetWeekId && b.week_id && b.week_id !== targetWeekId) {
+            return false;
         }
 
-        collisionDetails.innerHTML = `• <strong>Gebucht von:</strong> ${userName}${noteText}<br>• <strong>Belegungstyp:</strong> ${typeInfo}<br><span style="color: var(--text-muted); font-size: 11.5px; margin-top: 4px; display: block;">Aktivieren Sie die Checkbox "Kollisionen überschreiben", um den Speicherbutton zu aktivieren und diese Buchung zu ersetzen.</span>`;
-        collisionInfo.classList.remove('hidden');
+        // Check Date Range overlap (Von / Bis)
+        if (b.date) {
+            // Existing is single-date booking
+            if (dateStartVal && b.date < dateStartVal) return false;
+            if (dateEndVal && b.date > dateEndVal) return false;
+            return true;
+        }
 
+        if (b.date === null) {
+            // Existing is timetable block
+            if (dateStartVal && b.date_end && b.date_end < dateStartVal) return false;
+            if (dateEndVal && b.date_start && b.date_start > dateEndVal) return false;
+            return true;
+        }
+
+        return false;
+    });
+
+    if (conflictingBooking) {
+        // Conflict found for timetable block!
+        const userName = conflictingBooking.displayname || conflictingBooking.username || 'Unbekannt';
+        const noteText = conflictingBooking.notes ? `"${conflictingBooking.notes}"` : 'Keine Notiz';
+        
+        function formatDE(s) {
+            if (!s) return 'Unbegrenzt';
+            const p = s.split('-');
+            return p.length === 3 ? `${p[2]}.${p[1]}.${p[0]}` : s;
+        }
+
+        let typeInfo = '';
+        let periodInfo = '';
+
+        if (conflictingBooking.date) {
+            typeInfo = `Einzelbuchung`;
+            periodInfo = `Datum: ${formatDE(conflictingBooking.date)}`;
+        } else {
+            typeInfo = `Stundenplaneintrag [${conflictingBooking.week_name || 'Jede Woche'}]`;
+            periodInfo = `Von ${formatDE(conflictingBooking.date_start)} bis ${formatDE(conflictingBooking.date_end)}`;
+        }
+
+        if (collisionDetails) {
+            collisionDetails.innerHTML = `
+                • <strong>Gebucht von:</strong> ${userName}<br>
+                • <strong>Zweck / Notiz:</strong> ${noteText}<br>
+                • <strong>Typ & Turnus:</strong> ${typeInfo}<br>
+                • <strong>Gültigkeitszeitraum:</strong> ${periodInfo}<br>
+                <span style="color: var(--text-muted); font-size: 11.5px; margin-top: 6px; display: block;">
+                    Aktivieren Sie die Checkbox "Kollisionen überschreiben", um den Speicherbutton zu aktivieren und diese Buchung zu ersetzen.
+                </span>`;
+        }
+
+        if (collisionInfo) collisionInfo.classList.remove('hidden');
         if (overwriteContainer) overwriteContainer.classList.remove('hidden');
 
         const isChecked = overwriteCheckbox && overwriteCheckbox.checked;
         if (!isChecked) {
-            // Disable submit button as requested
             submitBtn.disabled = true;
             submitBtn.style.opacity = '0.4';
             submitBtn.style.cursor = 'not-allowed';
             submitBtn.title = 'Aktivieren Sie die Checkbox "Kollisionen überschreiben", um zu speichern.';
         } else {
-            // Enable submit button
             submitBtn.disabled = false;
             submitBtn.style.opacity = '1';
             submitBtn.style.cursor = 'pointer';
@@ -207,7 +228,7 @@ function checkModalCollisions() {
 
     } else {
         // No collision!
-        collisionInfo.classList.add('hidden');
+        if (collisionInfo) collisionInfo.classList.add('hidden');
         if (overwriteContainer) overwriteContainer.classList.add('hidden');
         if (overwriteCheckbox) overwriteCheckbox.checked = false;
 
