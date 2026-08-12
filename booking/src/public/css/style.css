@@ -1197,6 +1197,10 @@ body {
     opacity: 1;
 }
 
+.slot:hover {
+    z-index: 500 !important;
+}
+
 /* Tooltip Cards on Hover (Year 2026 Innovation) */
 .slot-tooltip {
     position: absolute;
@@ -1233,6 +1237,16 @@ body {
 .slot:hover .slot-tooltip {
     opacity: 1;
     transform: translateX(-50%) translateY(0);
+}
+
+/* Tooltips in upper rows (1st and 2nd period) open downwards to prevent header overlap and container clipping */
+.modern-calendar tbody tr:nth-child(-n+2) .slot-tooltip {
+    bottom: auto !important;
+    top: calc(100% + 10px) !important;
+    transform: translateX(-50%) translateY(-10px) !important;
+}
+.modern-calendar tbody tr:nth-child(-n+2) .slot:hover .slot-tooltip {
+    transform: translateX(-50%) translateY(0) !important;
 }
 
 /* 10. GLASSMORPHIC MODAL OVERLAYS */
