@@ -295,7 +295,7 @@ router.post('/bookings/add', requireLogin, async (req, res) => {
     }
 });
 
-// POST /bookings/cancel (Cancel Dynamic Booking)
+// POST /bookings/cancel (Cancel Dynamic Booking or Timetable Block)
 router.post('/bookings/cancel', requireLogin, async (req, res) => {
     const { booking_id, room_id, date, redirect_to } = req.body;
 
@@ -317,10 +317,15 @@ router.post('/bookings/cancel', requireLogin, async (req, res) => {
             return res.redirect(redirect_to || `/bookings?room_id=${room_id || booking.room_id}&date=${date || booking.date}`);
         }
 
-        // Perform cancellation (cancelled = 1)
-        await dbQuery.run("UPDATE bookings SET cancelled = 1 WHERE booking_id = ?", [booking_id]);
+        // If it's a timetable entry (date IS NULL or day_num IS NOT NULL), delete it completely
+        if (booking.date === null || booking.day_num !== null) {
+            await dbQuery.run("DELETE FROM bookings WHERE booking_id = ?", [booking_id]);
+            req.session.success = 'Stundenplaneintrag erfolgreich gelöscht!';
+        } else {
+            await dbQuery.run("UPDATE bookings SET cancelled = 1 WHERE booking_id = ?", [booking_id]);
+            req.session.success = 'Buchung erfolgreich storniert!';
+        }
 
-        req.session.success = 'Buchung erfolgreich storniert!';
         res.redirect(redirect_to || `/bookings?room_id=${room_id || booking.room_id}&date=${date || booking.date}`);
 
     } catch (e) {
