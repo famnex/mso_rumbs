@@ -438,19 +438,58 @@ router.get('/admin/timetables', requireAdmin, async (req, res) => {
 
 // POST /admin/timetables/add
 router.post('/admin/timetables/add', requireAdmin, async (req, res) => {
-    const { room_id, period_id, day_num, week_id, notes } = req.body;
+    const { room_id, period_id, day_num, week_id, notes, overwrite } = req.body;
     if (!room_id || !period_id || !day_num || !notes) {
         req.session.error = 'Unvollständige Stundenplandaten.';
         return res.redirect('/admin/timetables');
     }
     try {
         const parsedWeekId = week_id ? parseInt(week_id) : null;
+        const parsedRoomId = parseInt(room_id);
+        const parsedPeriodId = parseInt(period_id);
+        const parsedDayNum = parseInt(day_num);
+        const isOverwrite = overwrite === '1';
+
+        // Check for collision
+        let existing;
+        if (parsedWeekId) {
+            existing = await dbQuery.get(
+                `SELECT b.*, u.displayname, u.username, w.name as week_name
+                 FROM bookings b
+                 LEFT JOIN users u ON b.user_id = u.user_id
+                 LEFT JOIN weeks w ON b.week_id = w.week_id
+                 WHERE b.room_id = ? AND b.period_id = ? AND b.day_num = ? AND (b.week_id = ? OR b.week_id IS NULL) AND b.date IS NULL AND b.cancelled = 0`,
+                [parsedRoomId, parsedPeriodId, parsedDayNum, parsedWeekId]
+            );
+        } else {
+            existing = await dbQuery.get(
+                `SELECT b.*, u.displayname, u.username, w.name as week_name
+                 FROM bookings b
+                 LEFT JOIN users u ON b.user_id = u.user_id
+                 LEFT JOIN weeks w ON b.week_id = w.week_id
+                 WHERE b.room_id = ? AND b.period_id = ? AND b.day_num = ? AND b.date IS NULL AND b.cancelled = 0`,
+                [parsedRoomId, parsedPeriodId, parsedDayNum]
+            );
+        }
+
+        if (existing) {
+            if (isOverwrite) {
+                await dbQuery.run("DELETE FROM bookings WHERE booking_id = ?", [existing.booking_id]);
+            } else {
+                const userName = existing.displayname || existing.username || 'Unbekannt';
+                const turnusInfo = existing.week_name ? `Turnus: ${existing.week_name}` : 'Turnus: Jede Woche';
+                const noteInfo = existing.notes ? ` (Notiz: "${existing.notes}")` : '';
+                req.session.error = `Kollision: Dieser Slot ist an diesem Wochentag bereits belegt von ${userName}${noteInfo} [${turnusInfo}]! Setzen Sie den Haken bei "Kollisionen überschreiben", um ihn zu ersetzen.`;
+                return res.redirect('/admin/timetables');
+            }
+        }
+
         await dbQuery.run(
             `INSERT INTO bookings (day_num, week_id, room_id, period_id, user_id, date, notes, cancelled) 
              VALUES (?, ?, ?, ?, ?, NULL, ?, 0)`,
-            [parseInt(day_num), parsedWeekId, parseInt(room_id), parseInt(period_id), req.session.userId, notes]
+            [parsedDayNum, parsedWeekId, parsedRoomId, parsedPeriodId, req.session.userId, notes]
         );
-        req.session.success = 'Wiederkehrende Belegung (Dauerbuchung) erfolgreich angelegt!';
+        req.session.success = isOverwrite ? 'Dauerbelegung gespeichert und bestehende Kollision überschrieben!' : 'Wiederkehrende Belegung (Dauerbuchung) erfolgreich angelegt!';
         res.redirect('/admin/timetables');
     } catch (e) {
         console.error('Admin add timetable error:', e);

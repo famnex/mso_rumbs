@@ -231,31 +231,48 @@ router.post('/bookings/add', requireLogin, async (req, res) => {
             }
         }
 
+        const isOverwrite = req.session.authlevel === 1 && req.body.overwrite === '1';
+
         if (booking_type === 'timetable' && req.session.authlevel === 1) {
             // Permanent timetable block
             const parts = date.split('-');
             const parsedDate = new Date(parts[0], parts[1] - 1, parts[2]);
             const day_num = parsedDate.getDay(); // 1 = Monday, ..., 5 = Friday
+            const targetWeekId = week_id ? parseInt(week_id) : null;
 
             // Check if there's already a timetable block for this day, period, and week rotation
             let existing;
-            const targetWeekId = week_id ? parseInt(week_id) : null;
-            
             if (targetWeekId) {
                 existing = await dbQuery.get(
-                    "SELECT * FROM bookings WHERE room_id = ? AND period_id = ? AND day_num = ? AND (week_id = ? OR week_id IS NULL) AND date IS NULL AND cancelled = 0",
+                    `SELECT b.*, u.displayname, u.username, w.name as week_name
+                     FROM bookings b
+                     LEFT JOIN users u ON b.user_id = u.user_id
+                     LEFT JOIN weeks w ON b.week_id = w.week_id
+                     WHERE b.room_id = ? AND b.period_id = ? AND b.day_num = ? AND (b.week_id = ? OR b.week_id IS NULL) AND b.date IS NULL AND b.cancelled = 0`,
                     [room_id, period_id, day_num, targetWeekId]
                 );
             } else {
                 existing = await dbQuery.get(
-                    "SELECT * FROM bookings WHERE room_id = ? AND period_id = ? AND day_num = ? AND date IS NULL AND cancelled = 0",
+                    `SELECT b.*, u.displayname, u.username, w.name as week_name
+                     FROM bookings b
+                     LEFT JOIN users u ON b.user_id = u.user_id
+                     LEFT JOIN weeks w ON b.week_id = w.week_id
+                     WHERE b.room_id = ? AND b.period_id = ? AND b.day_num = ? AND b.date IS NULL AND b.cancelled = 0`,
                     [room_id, period_id, day_num]
                 );
             }
 
             if (existing) {
-                req.session.error = 'Dieser Slot ist in der ausgewählten Stunde bereits durch einen Stundenplaneintrag belegt!';
-                return res.redirect(`/bookings?room_id=${room_id}&date=${date}`);
+                if (isOverwrite) {
+                    // Delete colliding timetable entry
+                    await dbQuery.run("DELETE FROM bookings WHERE booking_id = ?", [existing.booking_id]);
+                } else {
+                    const userName = existing.displayname || existing.username || 'Unbekannt';
+                    const turnusInfo = existing.week_name ? `Turnus: ${existing.week_name}` : 'Turnus: Jede Woche';
+                    const noteInfo = existing.notes ? ` (Notiz: "${existing.notes}")` : '';
+                    req.session.error = `Kollision: Dieser Slot ist bereits belegt von ${userName}${noteInfo} [${turnusInfo}]! Setzen Sie den Haken bei "Kollisionen überschreiben", um ihn zu ersetzen.`;
+                    return res.redirect(`/bookings?room_id=${room_id}&date=${date}`);
+                }
             }
 
             // Insert new timetabled block
@@ -264,18 +281,28 @@ router.post('/bookings/add', requireLogin, async (req, res) => {
                 [room_id, period_id, req.session.userId, notes || 'Unterricht', day_num, targetWeekId]
             );
 
-            req.session.success = 'Stundenplanblockierung erfolgreich gespeichert!';
+            req.session.success = isOverwrite ? 'Stundenplanblockierung gespeichert und bestehende Kollision überschrieben!' : 'Stundenplanblockierung erfolgreich gespeichert!';
             return res.redirect(`/bookings?room_id=${room_id}&date=${date}`);
         } else {
             // Standard single booking
             const existing = await dbQuery.get(
-                "SELECT * FROM bookings WHERE room_id = ? AND period_id = ? AND date = ? AND cancelled = 0",
+                `SELECT b.*, u.displayname, u.username
+                 FROM bookings b
+                 LEFT JOIN users u ON b.user_id = u.user_id
+                 WHERE b.room_id = ? AND b.period_id = ? AND b.date = ? AND b.cancelled = 0`,
                 [room_id, period_id, date]
             );
 
             if (existing) {
-                req.session.error = 'Dieser Raum ist in der ausgewählten Stunde bereits belegt!';
-                return res.redirect(`/bookings?room_id=${room_id}&date=${date}`);
+                if (isOverwrite) {
+                    // Soft-cancel colliding single booking
+                    await dbQuery.run("UPDATE bookings SET cancelled = 1 WHERE booking_id = ?", [existing.booking_id]);
+                } else {
+                    const userName = existing.displayname || existing.username || 'Unbekannt';
+                    const noteInfo = existing.notes ? ` (Notiz: "${existing.notes}")` : '';
+                    req.session.error = `Kollision: Dieser Raum ist an diesem Datum bereits belegt von ${userName}${noteInfo}! ${req.session.authlevel === 1 ? 'Setzen Sie einen Haken bei "Kollisionen überschreiben", um die Buchung zu ersetzen.' : ''}`;
+                    return res.redirect(`/bookings?room_id=${room_id}&date=${date}`);
+                }
             }
 
             // Insert new booking
@@ -284,7 +311,7 @@ router.post('/bookings/add', requireLogin, async (req, res) => {
                 [room_id, period_id, req.session.userId, date, notes || '']
             );
 
-            req.session.success = 'Raum erfolgreich gebucht!';
+            req.session.success = isOverwrite ? 'Raum gebucht und bestehende Kollision überschrieben!' : 'Raum erfolgreich gebucht!';
             res.redirect(`/bookings?room_id=${room_id}&date=${date}`);
         }
 

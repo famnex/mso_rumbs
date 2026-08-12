@@ -143,6 +143,13 @@
                 <input type="text" name="notes" id="notes" required placeholder="z. B. 10a Informatik, Wartung">
             </div>
 
+            <div class="form-group inline-checkbox" style="margin-top: 10px; margin-bottom: 15px;">
+                <label for="admin-tt-overwrite" style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--warning, #f59e0b);">
+                    <input type="checkbox" name="overwrite" id="admin-tt-overwrite" value="1" style="width: 18px; height: 18px; accent-color: var(--warning, #f59e0b); cursor: pointer;">
+                    <span>⚡ Bestehende Kollisionen überschreiben</span>
+                </label>
+            </div>
+
             <button type="submit" class="btn-primary-block">
                 <span>📅 Dauerbuchung anlegen</span>
             </button>
