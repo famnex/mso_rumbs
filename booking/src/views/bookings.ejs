@@ -3,6 +3,7 @@
 
 <script>
     window.currentRoomBookings = <%- JSON.stringify(typeof bookingRows !== 'undefined' && bookingRows ? bookingRows : []) %>;
+    window.currentWeekDatesMap = <%- JSON.stringify(typeof weekDatesMap !== 'undefined' && weekDatesMap ? weekDatesMap : {}) %>;
 </script>
 
 <div class="calendar-header-bar card">

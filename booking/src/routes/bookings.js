@@ -155,6 +155,13 @@ router.get('/bookings', requireLogin, async (req, res) => {
         const defaultCatSetting = await dbQuery.get("SELECT value FROM settings WHERE name='default_category_id' LIMIT 1;");
         const systemDefaultCategoryId = (defaultCatSetting && defaultCatSetting.value) ? parseInt(defaultCatSetting.value) : null;
 
+        // Fetch all mapped weekdates into a lookup map
+        const allWeekDates = await dbQuery.all("SELECT * FROM weekdates;");
+        const weekDatesMap = {};
+        for (const r of allWeekDates) {
+            weekDatesMap[r.date] = r.week_id;
+        }
+
         // Fetch active academic year
         const academicYear = await dbQuery.get("SELECT * FROM academicyears LIMIT 1;");
         const isOutsideAcademicYear = (academicYear && academicYear.date_start && academicYear.date_end) ? (weekDates[4] < academicYear.date_start || weekDates[0] > academicYear.date_end) : false;
@@ -179,6 +186,7 @@ router.get('/bookings', requireLogin, async (req, res) => {
             gridBookings,
             bookingRows: allRoomBookings,
             holidayMap,
+            weekDatesMap,
             academicYear,
             isOutsideAcademicYear,
             systemDefaultCategoryId,
@@ -301,8 +309,22 @@ router.post('/bookings/add', requireLogin, async (req, res) => {
                 const singleBookings = await dbQuery.all(singleQuery, singleParams);
                 for (const sb of singleBookings) {
                     const sbParts = sb.date.split('-');
-                    const sbDay = new Date(sbParts[0], sbParts[1] - 1, sbParts[2]).getDay();
+                    const sbDateObj = new Date(sbParts[0], sbParts[1] - 1, sbParts[2]);
+                    const sbDay = sbDateObj.getDay();
                     if (sbDay === day_num) {
+                        // Calculate Monday for sb.date
+                        const mOffset = sbDay === 0 ? -6 : 1 - sbDay;
+                        sbDateObj.setDate(sbDateObj.getDate() + mOffset);
+                        const sbMonday = sbDateObj.toISOString().split('T')[0];
+
+                        const sbWeekMap = await dbQuery.get("SELECT week_id FROM weekdates WHERE date = ?", [sbMonday]);
+                        const sbWeekId = sbWeekMap ? sbWeekMap.week_id : null;
+
+                        // If target specifies turnus (e.g. Ungerade) and single booking is in different turnus (e.g. Gerade), skip!
+                        if (targetWeekId && sbWeekId && sbWeekId !== targetWeekId) {
+                            continue;
+                        }
+
                         existing = sb;
                         existing.is_single_booking = true;
                         break;

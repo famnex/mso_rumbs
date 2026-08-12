@@ -182,9 +182,27 @@ function checkModalCollisions() {
 
         if (bDayNum !== dayNum) return false;
 
-        // Check Turnus compatibility (if target has specific turnus, e.g. A-Woche, and existing has different specific turnus, e.g. B-Woche, no collision!)
-        if (targetWeekId && b.week_id && b.week_id !== targetWeekId) {
-            return false;
+        // Check Turnus compatibility (e.g. Ungerade vs Gerade)
+        if (targetWeekId) {
+            let bWeekId = b.week_id;
+            if (b.date) {
+                // Determine Monday of b.date to look up turnus in window.currentWeekDatesMap
+                const p = b.date.split('-');
+                if (p.length === 3) {
+                    const d = new Date(p[0], p[1] - 1, p[2]);
+                    const dDay = d.getDay();
+                    const mOffset = dDay === 0 ? -6 : 1 - dDay;
+                    d.setDate(d.getDate() + mOffset);
+                    const bMondayStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                    if (window.currentWeekDatesMap && window.currentWeekDatesMap[bMondayStr]) {
+                        bWeekId = parseInt(window.currentWeekDatesMap[bMondayStr]);
+                    }
+                }
+            }
+
+            if (bWeekId && bWeekId !== targetWeekId) {
+                return false; // Different turnus (e.g. Ungerade vs Gerade), no collision!
+            }
         }
 
         // Check Date Range overlap (Von / Bis)
