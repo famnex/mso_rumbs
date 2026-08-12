@@ -1272,6 +1272,10 @@ body.modal-open {
     padding: 20px 10px 100px 10px;
     box-sizing: border-box;
 }
+.hidden {
+    display: none !important;
+}
+
 .modal-overlay.hidden {
     opacity: 0;
     pointer-events: none;

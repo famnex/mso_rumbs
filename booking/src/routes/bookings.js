@@ -165,6 +165,7 @@ router.get('/bookings', requireLogin, async (req, res) => {
             prevWeek: prevWeekDate.toISOString().split('T')[0],
             nextWeek: nextWeekDate.toISOString().split('T')[0],
             gridBookings,
+            bookingRows,
             holidayMap,
             systemDefaultCategoryId,
             loadBookingScript: true,

@@ -1,6 +1,10 @@
 <% const loadBookingScript = true; %>
 <%- include('partials/header') %>
 
+<script>
+    window.currentRoomBookings = <%- JSON.stringify(typeof bookingRows !== 'undefined' && bookingRows ? bookingRows : []) %>;
+</script>
+
 <div class="calendar-header-bar card">
     <!-- Room Selector & Breadcrumb -->
     <div class="calendar-info">
@@ -280,7 +284,7 @@
 
                 <div class="form-group hidden" id="modal-week-rotation-group" style="margin-bottom: 15px;">
                     <label for="modal-week-id">Wiederholung (Turnus)</label>
-                    <select name="week_id" id="modal-week-id" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); font-weight: 600; cursor: pointer; outline: none; transition: border-color 0.2s;">
+                    <select name="week_id" id="modal-week-id" onchange="checkModalCollisions()" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); font-weight: 600; cursor: pointer; outline: none; transition: border-color 0.2s;">
                         <option value="">Wöchentlich (Jede Woche)</option>
                         <% if (typeof weeks !== 'undefined' && weeks && weeks.length) { %>
                             <% weeks.forEach(wk => { %>
@@ -297,15 +301,24 @@
             </div>
             
             <% if (authlevel === 1) { %>
-                <div class="form-group inline-checkbox" style="margin-top: 10px; margin-bottom: 15px;">
+                <!-- Live Collision Information Box -->
+                <div id="modal-collision-info" class="hidden" style="margin-top: 12px; margin-bottom: 12px; padding: 12px 14px; border-radius: 12px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: var(--text-main); font-size: 12.5px;">
+                    <div style="font-weight: 700; color: #ef4444; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+                        <span>⚠️ Kollisionshinweis</span>
+                    </div>
+                    <div id="modal-collision-details" style="line-height: 1.5;"></div>
+                </div>
+
+                <!-- Overwrite Checkbox Container (Hidden until collision) -->
+                <div class="form-group inline-checkbox hidden" id="modal-overwrite-container" style="margin-top: 10px; margin-bottom: 15px;">
                     <label for="modal-overwrite" style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--warning, #f59e0b);">
-                        <input type="checkbox" name="overwrite" id="modal-overwrite" value="1" style="width: 18px; height: 18px; accent-color: var(--warning, #f59e0b); cursor: pointer;">
+                        <input type="checkbox" name="overwrite" id="modal-overwrite" value="1" onchange="checkModalCollisions()" style="width: 18px; height: 18px; accent-color: var(--warning, #f59e0b); cursor: pointer;">
                         <span>⚡ Bestehende Kollisionen überschreiben</span>
                     </label>
                 </div>
             <% } %>
 
-            <button type="submit" class="btn-primary-block">
+            <button type="submit" id="modal-submit-btn" class="btn-primary-block">
                 <span>📝 Buchung verbindlich speichern</span>
             </button>
         </form>
