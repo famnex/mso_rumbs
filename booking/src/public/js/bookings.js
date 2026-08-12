@@ -145,7 +145,10 @@ function checkModalCollisions() {
     const targetWeekId = (weekSelect && weekSelect.value) ? parseInt(weekSelect.value) : null;
     const dateStr = document.getElementById('modal-date') ? document.getElementById('modal-date').value : '';
     const dateStartVal = document.getElementById('modal-date-start') && document.getElementById('modal-date-start').value ? document.getElementById('modal-date-start').value : dateStr;
-    const dateEndVal = document.getElementById('modal-date-end') ? document.getElementById('modal-date-end').value : '';
+    let dateEndVal = document.getElementById('modal-date-end') ? document.getElementById('modal-date-end').value : '';
+    if (dateEndVal && dateStartVal && dateEndVal < dateStartVal) {
+        dateEndVal = ''; // ignore inverted / invalid date_end
+    }
 
     const roomId = document.getElementById('modal-room-id') ? parseInt(document.getElementById('modal-room-id').value) : null;
     const periodId = document.getElementById('modal-period-id') ? parseInt(document.getElementById('modal-period-id').value) : null;
@@ -167,7 +170,17 @@ function checkModalCollisions() {
 
     conflictingBooking = bookings.find(b => {
         if (b.period_id !== periodId) return false;
-        if (b.day_num !== dayNum) return false;
+
+        // Calculate weekday for existing booking (whether single-date or timetable)
+        let bDayNum = b.day_num;
+        if (b.date) {
+            const p = b.date.split('-');
+            if (p.length === 3) {
+                bDayNum = new Date(p[0], p[1] - 1, p[2]).getDay();
+            }
+        }
+
+        if (bDayNum !== dayNum) return false;
 
         // Check Turnus compatibility (if target has specific turnus, e.g. A-Woche, and existing has different specific turnus, e.g. B-Woche, no collision!)
         if (targetWeekId && b.week_id && b.week_id !== targetWeekId) {

@@ -252,9 +252,13 @@ router.post('/bookings/add', requireLogin, async (req, res) => {
             const day_num = parsedDate.getDay(); // 1 = Monday, ..., 5 = Friday
             const targetWeekId = week_id ? parseInt(week_id) : null;
             const targetDateStart = (req.body.date_start && req.body.date_start.trim() !== '') ? req.body.date_start.trim() : date;
-            const targetDateEnd = (req.body.date_end && req.body.date_end.trim() !== '') ? req.body.date_end.trim() : null;
+            let targetDateEnd = (req.body.date_end && req.body.date_end.trim() !== '') ? req.body.date_end.trim() : null;
 
-            // Check if there's already a timetable block for this day, period, and week rotation with overlapping dates
+            if (targetDateEnd && targetDateEnd < targetDateStart) {
+                targetDateEnd = null;
+            }
+
+            // Check if there's already a timetable block OR a single-date booking for this day, period, and week rotation with overlapping dates
             let existing;
             let query = `SELECT b.*, u.displayname, u.username, w.name as week_name
                          FROM bookings b
@@ -278,13 +282,42 @@ router.post('/bookings/add', requireLogin, async (req, res) => {
 
             existing = await dbQuery.get(query, params);
 
+            // If no timetable collision, check for single-date booking collision within date range
+            if (!existing) {
+                let singleQuery = `SELECT b.*, u.displayname, u.username
+                                   FROM bookings b
+                                   LEFT JOIN users u ON b.user_id = u.user_id
+                                   WHERE b.room_id = ? AND b.period_id = ? AND b.date IS NOT NULL AND b.date >= ? AND b.cancelled = 0`;
+                let singleParams = [room_id, period_id, targetDateStart];
+
+                if (targetDateEnd) {
+                    singleQuery += ` AND b.date <= ?`;
+                    singleParams.push(targetDateEnd);
+                }
+
+                const singleBookings = await dbQuery.all(singleQuery, singleParams);
+                for (const sb of singleBookings) {
+                    const sbParts = sb.date.split('-');
+                    const sbDay = new Date(sbParts[0], sbParts[1] - 1, sbParts[2]).getDay();
+                    if (sbDay === day_num) {
+                        existing = sb;
+                        existing.is_single_booking = true;
+                        break;
+                    }
+                }
+            }
+
             if (existing) {
                 if (isOverwrite) {
-                    // Delete colliding timetable entry
-                    await dbQuery.run("DELETE FROM bookings WHERE booking_id = ?", [existing.booking_id]);
+                    // Delete or soft-cancel colliding booking
+                    if (existing.date) {
+                        await dbQuery.run("UPDATE bookings SET cancelled = 1 WHERE booking_id = ?", [existing.booking_id]);
+                    } else {
+                        await dbQuery.run("DELETE FROM bookings WHERE booking_id = ?", [existing.booking_id]);
+                    }
                 } else {
                     const userName = existing.displayname || existing.username || 'Unbekannt';
-                    const turnusInfo = existing.week_name ? `Turnus: ${existing.week_name}` : 'Turnus: Jede Woche';
+                    const turnusInfo = existing.date ? `Einzelbuchung am ${existing.date}` : (existing.week_name ? `Turnus: ${existing.week_name}` : 'Turnus: Jede Woche');
                     const noteInfo = existing.notes ? ` (Notiz: "${existing.notes}")` : '';
                     req.session.error = `Kollision: Dieser Slot ist bereits belegt von ${userName}${noteInfo} [${turnusInfo}]! Setzen Sie den Haken bei "Kollisionen überschreiben", um ihn zu ersetzen.`;
                     return res.redirect(`/bookings?room_id=${room_id}&date=${date}`);
