@@ -53,10 +53,17 @@ async function initializeDatabase() {
         // Enable foreign keys
         await dbQuery.run('PRAGMA foreign_keys = ON;');
 
+        // Run migrations for existing databases
+        const bookingsTableCheck = await dbQuery.get("SELECT name FROM sqlite_master WHERE type='table' AND name='bookings';");
+        if (bookingsTableCheck) {
+            try { await dbQuery.run("ALTER TABLE bookings ADD COLUMN date_start TEXT;"); } catch(e){}
+            try { await dbQuery.run("ALTER TABLE bookings ADD COLUMN date_end TEXT;"); } catch(e){}
+        }
+
         // Check if users table exists
         const tableCheck = await dbQuery.get("SELECT name FROM sqlite_master WHERE type='table' AND name='users';");
         if (tableCheck) {
-            console.log('Database tables already exist. Skipping initialization.');
+            console.log('Database tables already exist.');
             return;
         }
 
@@ -82,8 +89,6 @@ async function initializeDatabase() {
             date_start TEXT,
             date_end TEXT
         );`);
-        try { await dbQuery.run("ALTER TABLE bookings ADD COLUMN date_start TEXT;"); } catch(e){}
-        try { await dbQuery.run("ALTER TABLE bookings ADD COLUMN date_end TEXT;"); } catch(e){}
 
         // 3. departments
         await dbQuery.run(`CREATE TABLE IF NOT EXISTS departments (
