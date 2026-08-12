@@ -517,8 +517,29 @@ router.post('/admin/timetables/delete', requireAdmin, async (req, res) => {
 });
 
 // ==========================================
-// 8. WEEKS & ACADEMIC YEAR MANAGEMENT
-// ==========================================
+function calculateAcademicYearMondays(dateStartStr, dateEndStr) {
+    const mondays = [];
+    if (!dateStartStr || !dateEndStr) return mondays;
+
+    const sParts = dateStartStr.split('-').map(Number);
+    const eParts = dateEndStr.split('-').map(Number);
+    if (sParts.length !== 3 || eParts.length !== 3) return mondays;
+
+    let curr = new Date(Date.UTC(sParts[0], sParts[1] - 1, sParts[2]));
+    const end = new Date(Date.UTC(eParts[0], eParts[1] - 1, eParts[2]));
+
+    // Shift to first Monday (getUTCDay(): 0 is Sunday, 1 is Monday)
+    while (curr.getUTCDay() !== 1) {
+        curr.setUTCDate(curr.getUTCDate() + 1);
+    }
+
+    while (curr <= end) {
+        mondays.push(curr.toISOString().split('T')[0]);
+        curr.setUTCDate(curr.getUTCDate() + 7);
+    }
+
+    return mondays;
+}
 
 // GET /admin/weeks
 router.get('/admin/weeks', requireAdmin, async (req, res) => {
@@ -526,20 +547,8 @@ router.get('/admin/weeks', requireAdmin, async (req, res) => {
         const academicyear = await dbQuery.get("SELECT * FROM academicyears LIMIT 1;");
         const weeks = await dbQuery.all("SELECT * FROM weeks ORDER BY week_id ASC;");
         
-        // Calculate all mondays in academic year
-        const mondays = [];
-        if (academicyear) {
-            let curr = new Date(academicyear.date_start);
-            // shift to first Monday
-            while (curr.getDay() !== 1) {
-                curr.setDate(curr.getDate() + 1);
-            }
-            const end = new Date(academicyear.date_end);
-            while (curr <= end) {
-                mondays.push(curr.toISOString().split('T')[0]);
-                curr.setDate(curr.getDate() + 7);
-            }
-        }
+        // Calculate all mondays in academic year using shared UTC helper
+        const mondays = academicyear ? calculateAcademicYearMondays(academicyear.date_start, academicyear.date_end) : [];
 
         // Fetch all mapped dates
         const mappedRows = await dbQuery.all("SELECT * FROM weekdates;");
@@ -670,23 +679,8 @@ router.post('/admin/weeks/autoassign', requireAdmin, async (req, res) => {
             return res.redirect('/admin/weeks');
         }
 
-        // Calculate all Mondays between date_start and date_end
-        const startParts = academicyear.date_start.split('-');
-        const endParts = academicyear.date_end.split('-');
-        const start = new Date(startParts[0], startParts[1] - 1, startParts[2]);
-        const end = new Date(endParts[0], endParts[1] - 1, endParts[2]);
-        
-        // Adjust start to the first Monday on or after start date
-        const day = start.getDay();
-        const mondayOffset = day === 0 ? 1 : (day === 1 ? 0 : 8 - day);
-        start.setDate(start.getDate() + mondayOffset);
-
-        const mondays = [];
-        const curr = new Date(start);
-        while (curr <= end) {
-            mondays.push(curr.toISOString().split('T')[0]);
-            curr.setDate(curr.getDate() + 7);
-        }
+        // Calculate all Mondays between date_start and date_end using shared UTC helper
+        const mondays = calculateAcademicYearMondays(academicyear.date_start, academicyear.date_end);
 
         const id1 = parseInt(week_id_1);
         const id2 = parseInt(week_id_2);
