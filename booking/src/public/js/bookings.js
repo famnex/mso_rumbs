@@ -294,49 +294,72 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-function openAdminEditBookingModal(bookingId, roomId, roomName, periodId, periodName, dateStr, userStr, notesStr) {
-    document.getElementById('admin-edit-booking-id').value = bookingId;
-    document.getElementById('admin-edit-booking-room-id').value = roomId;
-    document.getElementById('admin-edit-booking-date').value = dateStr;
-    document.getElementById('admin-edit-booking-room-name').value = roomName;
-    document.getElementById('admin-edit-booking-period-name').value = periodName;
-    document.getElementById('admin-edit-booking-user').value = userStr;
-    document.getElementById('admin-edit-booking-notes').value = notesStr;
-    
-    // Formatting date
-    const dateObj = new Date(dateStr);
-    const dateFormatted = dateObj.toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
-    document.getElementById('admin-edit-booking-date-formatted').value = dateFormatted;
-    
-    // Set for cancellation form too
-    document.getElementById('admin-cancel-booking-id').value = bookingId;
-    document.getElementById('admin-cancel-booking-room-id').value = roomId;
-    document.getElementById('admin-cancel-booking-date').value = dateStr;
-    
-    openModal('admin-edit-booking-modal');
+function openEditBookingModal(bookingId, notes, roomName, periodName, dateStr, isTimetable = false, weekId = '', dateStart = '', dateEnd = '', userName = '', redirectTo = '') {
+    const modal = document.getElementById('edit-booking-modal');
+    if (!modal) return;
+
+    if (document.getElementById('edit-booking-id')) document.getElementById('edit-booking-id').value = bookingId;
+    if (document.getElementById('edit-booking-notes')) document.getElementById('edit-booking-notes').value = notes || '';
+    if (document.getElementById('edit-booking-room-name')) document.getElementById('edit-booking-room-name').value = roomName || 'Raum';
+    if (document.getElementById('edit-booking-period-name')) document.getElementById('edit-booking-period-name').value = periodName || 'Unterrichtsstunde';
+
+    if (document.getElementById('edit-booking-redirect-to')) {
+        document.getElementById('edit-booking-redirect-to').value = redirectTo || '';
+    }
+
+    const titleElem = document.getElementById('edit-booking-modal-title');
+    if (titleElem) {
+        titleElem.textContent = isTimetable ? '✏️ Dauerbuchung bearbeiten' : '✏️ Reservierung bearbeiten';
+    }
+
+    const userElem = document.getElementById('edit-booking-user');
+    if (userElem) {
+        userElem.value = userName || 'Sie selbst';
+    }
+
+    const dateFormattedElem = document.getElementById('edit-booking-date-formatted');
+    if (dateFormattedElem && dateStr) {
+        const parts = dateStr.split('-');
+        if (parts.length === 3) {
+            const dateObj = new Date(parts[0], parts[1] - 1, parts[2]);
+            dateFormattedElem.value = isTimetable ? (dateObj.toLocaleDateString('de-DE', { weekday: 'long' }) + 's') : dateObj.toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
+        } else {
+            dateFormattedElem.value = dateStr;
+        }
+    }
+
+    const ttGroup = document.getElementById('edit-timetable-fields-group');
+    if (ttGroup) {
+        if (isTimetable) {
+            ttGroup.classList.remove('hidden');
+            const weekSelect = document.getElementById('edit-booking-week-id');
+            if (weekSelect) weekSelect.value = weekId || '';
+
+            const dateStartInput = document.getElementById('edit-booking-date-start');
+            if (dateStartInput) dateStartInput.value = dateStart || dateStr;
+
+            const dateEndInput = document.getElementById('edit-booking-date-end');
+            if (dateEndInput) dateEndInput.value = dateEnd || '';
+        } else {
+            ttGroup.classList.add('hidden');
+        }
+    }
+
+    modal.classList.remove('hidden');
+    document.body.classList.add('modal-open');
+
+    setTimeout(() => {
+        const notesInput = document.getElementById('edit-booking-notes');
+        if (notesInput) notesInput.focus();
+    }, 50);
 }
 
-function openAdminEditTimetableModal(bookingId, roomId, roomName, periodId, periodName, dateStr, dayNum, notesStr, weekId) {
-    document.getElementById('admin-edit-tt-id').value = bookingId;
-    document.getElementById('admin-edit-tt-room-id').value = roomId;
-    document.getElementById('admin-edit-tt-period-id').value = periodId;
-    document.getElementById('admin-edit-tt-day-num').value = dayNum;
-    document.getElementById('admin-edit-tt-room-name').value = roomName;
-    document.getElementById('admin-edit-tt-period-name').value = periodName;
-    document.getElementById('admin-edit-tt-notes').value = notesStr;
-    document.getElementById('admin-edit-tt-week-id').value = weekId || "";
-    
-    // Convert dayNum to readable German day name
-    const daysMap = ['', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'];
-    document.getElementById('admin-edit-tt-day-name').value = daysMap[dayNum] || 'Wochentag';
-    
-    // Redirect back to this current calendar URL after edit or delete!
-    const currentUrl = window.location.pathname + window.location.search;
-    document.getElementById('admin-edit-tt-redirect').value = currentUrl;
-    document.getElementById('admin-delete-tt-id').value = bookingId;
-    document.getElementById('admin-delete-tt-redirect').value = currentUrl;
-    
-    openModal('admin-edit-timetable-modal');
+function openAdminEditBookingModal(bookingId, roomId, roomName, periodId, periodName, dateStr, userName, notes) {
+    openEditBookingModal(bookingId, notes, roomName, periodName, dateStr, false, '', '', '', userName);
+}
+
+function openAdminEditTimetableModal(bookingId, roomId, roomName, periodId, periodName, dateStr, dayNum, notes, weekId) {
+    openEditBookingModal(bookingId, notes, roomName, periodName, dateStr, true, weekId, dateStr, '', 'Stundenplan');
 }
 
 function openDetailModal(roomName, periodName, dateStr, userStr, notesStr) {

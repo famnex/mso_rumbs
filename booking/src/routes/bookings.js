@@ -437,32 +437,58 @@ router.post('/bookings/cancel', requireLogin, async (req, res) => {
     }
 });
 
-// POST /bookings/edit (Edit existing booking notes - Admin or Owner only)
+// POST /bookings/edit (Edit existing booking or timetable block - Admin or Owner)
 router.post('/bookings/edit', requireLogin, async (req, res) => {
-    const { booking_id, room_id, date, notes } = req.body;
+    const { booking_id, room_id, date, notes, week_id, date_start, date_end, redirect_to } = req.body;
     if (!booking_id) {
         req.session.error = 'Ungültige Buchungs-ID.';
-        return res.redirect('/bookings');
+        return res.redirect(redirect_to || '/bookings');
     }
     try {
         const booking = await dbQuery.get("SELECT * FROM bookings WHERE booking_id = ?", [booking_id]);
         if (!booking) {
             req.session.error = 'Die Buchung existiert nicht.';
-            return res.redirect('/bookings');
+            return res.redirect(redirect_to || '/bookings');
         }
+
         // Verify authorization: User can only edit their own booking, unless they are admin (authlevel = 1)
         if (booking.user_id !== req.session.userId && req.session.authlevel !== 1) {
             req.session.error = 'Sie sind nicht berechtigt, diese Buchung zu bearbeiten.';
-            return res.redirect(`/bookings?room_id=${room_id || booking.room_id}&date=${date || booking.date}`);
+            return res.redirect(redirect_to || `/bookings?room_id=${room_id || booking.room_id}&date=${date || booking.date}`);
         }
         
-        await dbQuery.run("UPDATE bookings SET notes = ? WHERE booking_id = ?", [notes || '', booking_id]);
+        const targetNotes = notes !== undefined ? notes : booking.notes;
+
+        if (booking.day_num !== null) {
+            // Timetable block (Admin only for turnus & date range)
+            if (req.session.authlevel !== 1) {
+                req.session.error = 'Nur Administratoren dürfen Dauerbuchungen bearbeiten.';
+                return res.redirect(redirect_to || `/bookings?room_id=${room_id || booking.room_id}&date=${date || booking.date}`);
+            }
+
+            const targetWeekId = (week_id !== undefined && week_id !== '') ? parseInt(week_id) : null;
+            const targetDateStart = (date_start !== undefined && date_start.trim() !== '') ? date_start.trim() : booking.date_start;
+            let targetDateEnd = (date_end !== undefined) ? (date_end.trim() !== '' ? date_end.trim() : null) : booking.date_end;
+
+            if (targetDateEnd && targetDateStart && targetDateEnd < targetDateStart) {
+                targetDateEnd = null;
+            }
+
+            await dbQuery.run(
+                `UPDATE bookings SET notes = ?, week_id = ?, date_start = ?, date_end = ? WHERE booking_id = ?`,
+                [targetNotes || 'Unterricht', targetWeekId, targetDateStart, targetDateEnd, booking_id]
+            );
+        } else {
+            // Single booking
+            await dbQuery.run("UPDATE bookings SET notes = ? WHERE booking_id = ?", [targetNotes || '', booking_id]);
+        }
+
         req.session.success = 'Buchungsdetails erfolgreich aktualisiert!';
-        res.redirect(`/bookings?room_id=${room_id || booking.room_id}&date=${date || booking.date}`);
+        res.redirect(redirect_to || `/bookings?room_id=${room_id || booking.room_id}&date=${date || booking.date}`);
     } catch (e) {
-        console.error('Edit booking notes error:', e);
-        req.session.error = 'Fehler beim Bearbeiten der Buchung.';
-        res.redirect('/bookings');
+        console.error('Edit booking error:', e);
+        req.session.error = 'Fehler beim Bearbeiten der Buchung: ' + (e.message || e);
+        res.redirect(redirect_to || '/bookings');
     }
 });
 

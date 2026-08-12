@@ -176,8 +176,8 @@
                             <!-- Dynamic Single Booking Cell -->
                             <% const isMine = booking.user_id === currentUserId; %>
                             <td class="slot booked <%= isMine ? 'slot-mine' : 'slot-staff' %> clickable"
-                                <% if (authlevel === 1) { %>
-                                onclick="openAdminEditBookingModal('<%= booking.booking_id %>', '<%= room.room_id %>', '<%= room.name %>', '<%= period.period_id %>', '<%= period.name %>', '<%= currentDate %>', '<%= (booking.displayname || booking.username).replace(/'/g, "\\'") %>', '<%= (booking.notes || "").replace(/'/g, "\\'") %>')"
+                                <% if (isMine || authlevel === 1) { %>
+                                onclick="openEditBookingModal('<%= booking.booking_id %>', '<%= (booking.notes || "").replace(/'/g, "\\'") %>', '<%= room.name.replace(/'/g, "\\'") %>', '<%= period.name.replace(/'/g, "\\'") %>', '<%= currentDate %>', false, '', '', '', '<%= (booking.displayname || booking.username).replace(/'/g, "\\'") %>')"
                                 <% } else { %>
                                 onclick="openDetailModal('<%= room.name.replace(/'/g, "\\'") %>', '<%= period.name.replace(/'/g, "\\'") %>', '<%= currentDate %>', '<%= (booking.firstname + ' ' + booking.lastname + ' (' + booking.username + ')').replace(/'/g, "\\'") %>', '<%= (booking.notes || 'Keine Angabe').replace(/'/g, "\\'") %>')"
                                 <% } %>
@@ -211,14 +211,19 @@
                                     </div>
 
                                     <% if (isMine || authlevel === 1) { %>
-                                        <form action="/bookings/cancel" method="POST" class="cancel-form" onsubmit="return confirm('Möchten Sie diese Buchung wirklich stornieren?');" onclick="event.stopPropagation()">
-                                            <input type="hidden" name="booking_id" value="<%= booking.booking_id %>">
-                                            <input type="hidden" name="room_id" value="<%= room.room_id %>">
-                                            <input type="hidden" name="date" value="<%= selectedDate %>">
-                                            <button type="submit" class="btn-slot-cancel" title="Stornieren" onclick="event.stopPropagation()">
-                                                <svg class="trash-icon" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>Stornieren
+                                        <div class="slot-actions-bar" style="display: flex; gap: 4px; align-items: center; justify-content: flex-end; margin-top: 4px;" onclick="event.stopPropagation()">
+                                            <button type="button" class="btn-slot-cancel" style="background: rgba(59, 130, 246, 0.15); color: #3b82f6; border-color: rgba(59, 130, 246, 0.3);" title="Buchung bearbeiten" onclick="event.stopPropagation(); openEditBookingModal('<%= booking.booking_id %>', '<%= (booking.notes || "").replace(/'/g, "\\'") %>', '<%= room.name.replace(/'/g, "\\'") %>', '<%= period.name.replace(/'/g, "\\'") %>', '<%= currentDate %>', false, '', '', '', '<%= (booking.displayname || booking.username).replace(/'/g, "\\'") %>')">
+                                                ✏️
                                             </button>
-                                        </form>
+                                            <form action="/bookings/cancel" method="POST" class="cancel-form" onsubmit="return confirm('Möchten Sie diese Buchung wirklich stornieren?');" onclick="event.stopPropagation()">
+                                                <input type="hidden" name="booking_id" value="<%= booking.booking_id %>">
+                                                <input type="hidden" name="room_id" value="<%= room.room_id %>">
+                                                <input type="hidden" name="date" value="<%= selectedDate %>">
+                                                <button type="submit" class="btn-slot-cancel" title="Stornieren" onclick="event.stopPropagation()">
+                                                    <svg class="trash-icon" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                                                </button>
+                                            </form>
+                                        </div>
                                     <% } %>
                                 </div>
                             </td>
@@ -226,7 +231,7 @@
                             <!-- Static Timetabled Block Cell -->
                             <td class="slot booked slot-static clickable"
                                 <% if (authlevel === 1) { %>
-                                onclick="openAdminEditTimetableModal('<%= timetable.booking_id %>', '<%= room.room_id %>', '<%= room.name %>', '<%= period.period_id %>', '<%= period.name %>', '<%= currentDate %>', '<%= dayIdx + 1 %>', '<%= (timetable.notes || "Unterricht").replace(/'/g, "\\'") %>', '<%= timetable.week_id || "" %>')"
+                                onclick="openEditBookingModal('<%= timetable.booking_id %>', '<%= (timetable.notes || "Unterricht").replace(/'/g, "\\'") %>', '<%= room.name.replace(/'/g, "\\'") %>', '<%= period.name.replace(/'/g, "\\'") %>', '<%= currentDate %>', true, '<%= timetable.week_id || "" %>', '<%= timetable.date_start || currentDate %>', '<%= timetable.date_end || "" %>', '<%= (timetable.displayname || timetable.username || "Stundenplan").replace(/'/g, "\\'") %>')"
                                 <% } else { %>
                                 onclick="openDetailModal('<%= room.name.replace(/'/g, "\\'") %>', '<%= period.name.replace(/'/g, "\\'") %>', '<%= currentDate %>', 'Stundenplan', '<%= (timetable.notes || "Regulärer Unterricht").replace(/'/g, "\\'") %>')"
                                 <% } %>
@@ -250,13 +255,18 @@
                                     </div>
 
                                     <% if (authlevel === 1) { %>
-                                        <form action="/admin/timetables/delete" method="POST" class="cancel-form" onsubmit="return confirm('Möchten Sie diesen Stundenplaneintrag wirklich löschen?');" onclick="event.stopPropagation()">
-                                            <input type="hidden" name="booking_id" value="<%= timetable.booking_id %>">
-                                            <input type="hidden" name="redirect_to" value="/bookings?room_id=<%= room.room_id %>&date=<%= selectedDate %>">
-                                            <button type="submit" class="btn-slot-cancel" title="Stundenplaneintrag löschen" onclick="event.stopPropagation()">
-                                                <svg class="trash-icon" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>Löschen
+                                        <div class="slot-actions-bar" style="display: flex; gap: 4px; align-items: center; justify-content: flex-end; margin-top: 4px;" onclick="event.stopPropagation()">
+                                            <button type="button" class="btn-slot-cancel" style="background: rgba(59, 130, 246, 0.15); color: #3b82f6; border-color: rgba(59, 130, 246, 0.3);" title="Dauerbuchung bearbeiten" onclick="event.stopPropagation(); openEditBookingModal('<%= timetable.booking_id %>', '<%= (timetable.notes || "Unterricht").replace(/'/g, "\\'") %>', '<%= room.name.replace(/'/g, "\\'") %>', '<%= period.name.replace(/'/g, "\\'") %>', '<%= currentDate %>', true, '<%= timetable.week_id || "" %>', '<%= timetable.date_start || currentDate %>', '<%= timetable.date_end || "" %>', '<%= (timetable.displayname || timetable.username || "Stundenplan").replace(/'/g, "\\'") %>')">
+                                                ✏️
                                             </button>
-                                        </form>
+                                            <form action="/admin/timetables/delete" method="POST" class="cancel-form" onsubmit="return confirm('Möchten Sie diesen Stundenplaneintrag wirklich löschen?');" onclick="event.stopPropagation()">
+                                                <input type="hidden" name="booking_id" value="<%= timetable.booking_id %>">
+                                                <input type="hidden" name="redirect_to" value="/bookings?room_id=<%= room.room_id %>&date=<%= selectedDate %>">
+                                                <button type="submit" class="btn-slot-cancel" title="Stundenplaneintrag löschen" onclick="event.stopPropagation()">
+                                                    <svg class="trash-icon" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                                                </button>
+                                            </form>
+                                        </div>
                                     <% } %>
                                 </div>
                             </td>
@@ -416,128 +426,81 @@
         </div>
     </div>
 
-<% if (authlevel === 1) { %>
-<!-- Admin Edit Single Booking Modal (Premium Glassmorphism 2026) -->
-<div id="admin-edit-booking-modal" class="modal-overlay hidden" onclick="closeModal('admin-edit-booking-modal')">
+<!-- Universal Edit Booking & Timetable Block Modal -->
+<div id="edit-booking-modal" class="modal-overlay hidden" onclick="closeModal('edit-booking-modal')">
     <div class="modal-card card" onclick="event.stopPropagation()">
         <div class="modal-header">
-            <h3>✏️ Reservierung bearbeiten (Admin)</h3>
-            <button class="btn-close-modal" onclick="closeModal('admin-edit-booking-modal')">&times;</button>
+            <h3 id="edit-booking-modal-title">✏️ Buchung bearbeiten</h3>
+            <button class="btn-close-modal" onclick="closeModal('edit-booking-modal')">&times;</button>
         </div>
-        <p class="modal-desc">Bearbeiten Sie den Verwendungszweck oder stornieren Sie diese Buchung.</p>
+        <p class="modal-desc">Passen Sie die Details dieser Buchung an.</p>
         
         <form action="/bookings/edit" method="POST" class="modern-form compact">
-            <input type="hidden" name="booking_id" id="admin-edit-booking-id">
-            <input type="hidden" name="room_id" id="admin-edit-booking-room-id">
-            <input type="hidden" name="date" id="admin-edit-booking-date">
+            <input type="hidden" name="booking_id" id="edit-booking-id">
+            <input type="hidden" name="room_id" id="edit-booking-room-id" value="<%= room.room_id %>">
+            <input type="hidden" name="date" id="edit-booking-date" value="<%= selectedDate %>">
+            <input type="hidden" name="redirect_to" id="edit-booking-redirect-to" value="">
 
             <div class="form-row" style="margin-bottom: 12px;">
                 <div class="form-group" style="margin-bottom: 0;">
                     <label>Medium / Raum</label>
-                    <input type="text" id="admin-edit-booking-room-name" readonly class="input-readonly" style="padding: 10px;">
+                    <input type="text" id="edit-booking-room-name" readonly class="input-readonly" style="padding: 10px;">
                 </div>
                 <div class="form-group" style="margin-bottom: 0;">
-                    <label>Datum</label>
-                    <input type="text" id="admin-edit-booking-date-formatted" readonly class="input-readonly" style="padding: 10px;">
+                    <label>Datum / Wochentag</label>
+                    <input type="text" id="edit-booking-date-formatted" readonly class="input-readonly" style="padding: 10px;">
                 </div>
             </div>
 
             <div class="form-row" style="margin-bottom: 12px;">
                 <div class="form-group" style="margin-bottom: 0;">
                     <label>Unterrichtsstunde</label>
-                    <input type="text" id="admin-edit-booking-period-name" readonly class="input-readonly" style="padding: 10px;">
+                    <input type="text" id="edit-booking-period-name" readonly class="input-readonly" style="padding: 10px;">
                 </div>
                 <div class="form-group" style="margin-bottom: 0;">
                     <label>Gebucht von</label>
-                    <input type="text" id="admin-edit-booking-user" readonly class="input-readonly" style="padding: 10px;">
+                    <input type="text" id="edit-booking-user" readonly class="input-readonly" style="padding: 10px;">
                 </div>
             </div>
 
+            <% if (authlevel === 1) { %>
+                <!-- Timetable specific fields (Turnus, Von, Bis) for Admins -->
+                <div id="edit-timetable-fields-group" class="hidden">
+                    <div class="form-group" style="margin-bottom: 12px;">
+                        <label for="edit-booking-week-id">Wiederholung (Turnus)</label>
+                        <select name="week_id" id="edit-booking-week-id" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); font-weight: 600;">
+                            <option value="">Wöchentlich (Jede Woche)</option>
+                            <% if (typeof weeks !== 'undefined' && weeks && weeks.length) { %>
+                                <% weeks.forEach(wk => { %>
+                                    <option value="<%= wk.week_id %>"><%= wk.name %></option>
+                                <% }) %>
+                            <% } %>
+                        </select>
+                    </div>
+
+                    <div class="form-row" style="margin-bottom: 12px;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="edit-booking-date-start">Gültig von (Startdatum)</label>
+                            <input type="date" name="date_start" id="edit-booking-date-start" style="padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); font-weight: 600; width: 100%;">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="edit-booking-date-end">Gültig bis (Enddatum)</label>
+                            <input type="date" name="date_end" id="edit-booking-date-end" style="padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); font-weight: 600; width: 100%;">
+                        </div>
+                    </div>
+                </div>
+            <% } %>
+
             <div class="form-group" style="margin-bottom: 20px;">
-                <label for="admin-edit-booking-notes">Verwendungszweck / Klasse</label>
-                <input type="text" name="notes" id="admin-edit-booking-notes" placeholder="z. B. 10b Informatik" required style="padding: 12px;">
+                <label for="edit-booking-notes">Verwendungszweck / Klasse</label>
+                <input type="text" name="notes" id="edit-booking-notes" placeholder="z. B. 10b Informatik" required style="padding: 12px;">
             </div>
 
             <button type="submit" class="btn-primary-block" style="width: 100%;">
                 <span>💾 Änderungen speichern</span>
             </button>
         </form>
-        
-        <form action="/bookings/cancel" method="POST" onsubmit="return confirm('Möchten Sie diese Buchung wirklich stornieren?');" style="margin-top: 12px;">
-            <input type="hidden" name="booking_id" id="admin-cancel-booking-id">
-            <input type="hidden" name="room_id" id="admin-cancel-booking-room-id">
-            <input type="hidden" name="date" id="admin-cancel-booking-date">
-            <button type="submit" class="btn-danger-sm" style="width: 100%; padding: 14px; justify-content: center; font-size: 14px; font-weight: 700; border-radius: 14px;">
-                🗑️ Belegung stornieren
-            </button>
-        </form>
     </div>
 </div>
-
-<!-- Admin Edit Timetable Modal (Premium Glassmorphism 2026) -->
-<div id="admin-edit-timetable-modal" class="modal-overlay hidden" onclick="closeModal('admin-edit-timetable-modal')">
-    <div class="modal-card card" onclick="event.stopPropagation()">
-        <div class="modal-header">
-            <h3>✏️ Stundenplaneintrag bearbeiten (Admin)</h3>
-            <button class="btn-close-modal" onclick="closeModal('admin-edit-timetable-modal')">&times;</button>
-        </div>
-        <p class="modal-desc">Bearbeiten Sie diesen stundenplanmäßigen Eintrag direkt aus dem Kalender.</p>
-        
-        <form action="/admin/timetables/edit" method="POST" class="modern-form compact">
-            <input type="hidden" name="booking_id" id="admin-edit-tt-id">
-            <input type="hidden" name="room_id" id="admin-edit-tt-room-id">
-            <input type="hidden" name="period_id" id="admin-edit-tt-period-id">
-            <input type="hidden" name="day_num" id="admin-edit-tt-day-num">
-            <input type="hidden" name="redirect_to" id="admin-edit-tt-redirect">
-
-            <div class="form-row" style="margin-bottom: 12px;">
-                <div class="form-group" style="margin-bottom: 0;">
-                    <label>Medium / Raum</label>
-                    <input type="text" id="admin-edit-tt-room-name" readonly class="input-readonly" style="padding: 10px;">
-                </div>
-                <div class="form-group" style="margin-bottom: 0;">
-                    <label>Stunde</label>
-                    <input type="text" id="admin-edit-tt-period-name" readonly class="input-readonly" style="padding: 10px;">
-                </div>
-            </div>
-
-            <div class="form-row" style="margin-bottom: 12px;">
-                <div class="form-group" style="margin-bottom: 0;">
-                    <label>Wochentag</label>
-                    <input type="text" id="admin-edit-tt-day-name" readonly class="input-readonly" style="padding: 10px;">
-                </div>
-                <div class="form-group" style="margin-bottom: 0;">
-                    <label for="admin-edit-tt-week-id">Turnus (Woche)</label>
-                    <select name="week_id" id="admin-edit-tt-week-id" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); font-weight: 600; cursor: pointer; outline: none;">
-                        <option value="">Wöchentlich (Jede Woche)</option>
-                        <% if (typeof weeks !== 'undefined' && weeks && weeks.length) { %>
-                            <% weeks.forEach(wk => { %>
-                                <option value="<%= wk.week_id %>"><%= wk.name %></option>
-                            <% }) %>
-                        <% } %>
-                    </select>
-                </div>
-            </div>
-
-            <div class="form-group" style="margin-bottom: 20px;">
-                <label for="admin-edit-tt-notes">Zweck / Klasse</label>
-                <input type="text" name="notes" id="admin-edit-tt-notes" placeholder="z. B. 10a Informatik" required style="padding: 12px;">
-            </div>
-
-            <button type="submit" class="btn-primary-block" style="width: 100%;">
-                <span>💾 Änderungen speichern</span>
-            </button>
-        </form>
-        
-        <form action="/admin/timetables/delete" method="POST" onsubmit="return confirm('Möchten Sie diesen dauerhaften Stundenplaneintrag wirklich löschen?');" style="margin-top: 12px;">
-            <input type="hidden" name="booking_id" id="admin-delete-tt-id">
-            <input type="hidden" name="redirect_to" id="admin-delete-tt-redirect">
-            <button type="submit" class="btn-danger-sm" style="width: 100%; padding: 14px; justify-content: center; font-size: 14px; font-weight: 700; border-radius: 14px;">
-                🗑️ Dauerbelegung stornieren
-            </button>
-        </form>
-    </div>
-</div>
-<% } %>
 
 <%- include('partials/footer') %>
