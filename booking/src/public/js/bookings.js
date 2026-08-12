@@ -16,7 +16,15 @@ function openBookingModal(roomId, roomName, periodId, periodName, dateStr) {
     // Format date nicely (de-DE)
     const dateObj = new Date(dateStr);
     const dateFormatted = dateObj.toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
-    document.getElementById('modal-date-formatted').value = dateFormatted;
+    const weekdayName = dateObj.toLocaleDateString('de-DE', { weekday: 'long' });
+    const weekdayPlural = weekdayName + 's';
+
+    const dateFormattedInput = document.getElementById('modal-date-formatted');
+    if (dateFormattedInput) {
+        dateFormattedInput.dataset.fullDateFormatted = dateFormatted;
+        dateFormattedInput.dataset.weekdayPlural = weekdayPlural;
+        dateFormattedInput.value = dateFormatted;
+    }
 
     // Set default "Von" date_start to clicked dateStr
     const dateStartInput = document.getElementById('modal-date-start');
@@ -89,13 +97,20 @@ function closeBookingModal(event = null, force = false) {
 function toggleBookingTypeFields(type) {
     const weekGroup = document.getElementById('modal-week-rotation-group');
     const dateRangeGroup = document.getElementById('modal-date-range-group');
+    const dateFormattedInput = document.getElementById('modal-date-formatted');
 
     if (type === 'timetable') {
         if (weekGroup) weekGroup.classList.remove('hidden');
         if (dateRangeGroup) dateRangeGroup.classList.remove('hidden');
+        if (dateFormattedInput && dateFormattedInput.dataset.weekdayPlural) {
+            dateFormattedInput.value = dateFormattedInput.dataset.weekdayPlural;
+        }
     } else {
         if (weekGroup) weekGroup.classList.add('hidden');
         if (dateRangeGroup) dateRangeGroup.classList.add('hidden');
+        if (dateFormattedInput && dateFormattedInput.dataset.fullDateFormatted) {
+            dateFormattedInput.value = dateFormattedInput.dataset.fullDateFormatted;
+        }
     }
     checkModalCollisions();
 }
