@@ -294,6 +294,28 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
+function handleEditBtnClick(event, btn) {
+    if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+    }
+    if (!btn) return;
+    const ds = btn.dataset || {};
+    openEditBookingModal(
+        ds.bookingId,
+        ds.notes || '',
+        ds.roomName || '',
+        ds.periodName || '',
+        ds.date || '',
+        ds.isTimetable === 'true',
+        ds.weekId || '',
+        ds.dateStart || '',
+        ds.dateEnd || '',
+        ds.userName || '',
+        ds.redirectTo || ''
+    );
+}
+
 function openEditBookingModal(bookingId, notes, roomName, periodName, dateStr, isTimetable = false, weekId = '', dateStart = '', dateEnd = '', userName = '', redirectTo = '') {
     const modal = document.getElementById('edit-booking-modal');
     if (!modal) return;

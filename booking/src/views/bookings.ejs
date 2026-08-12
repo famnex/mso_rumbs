@@ -177,9 +177,16 @@
                             <% const isMine = booking.user_id === currentUserId; %>
                             <td class="slot booked <%= isMine ? 'slot-mine' : 'slot-staff' %> clickable"
                                 <% if (isMine || authlevel === 1) { %>
-                                onclick="openEditBookingModal('<%= booking.booking_id %>', '<%= (booking.notes || "").replace(/'/g, "\\'") %>', '<%= room.name.replace(/'/g, "\\'") %>', '<%= period.name.replace(/'/g, "\\'") %>', '<%= currentDate %>', false, '', '', '', '<%= (booking.displayname || booking.username).replace(/'/g, "\\'") %>')"
+                                    data-booking-id="<%= booking.booking_id %>"
+                                    data-notes="<%= booking.notes || '' %>"
+                                    data-room-name="<%= room.name %>"
+                                    data-period-name="<%= period.name %>"
+                                    data-date="<%= currentDate %>"
+                                    data-is-timetable="false"
+                                    data-user-name="<%= booking.displayname || booking.username %>"
+                                    onclick="handleEditBtnClick(event, this)"
                                 <% } else { %>
-                                onclick="openDetailModal('<%= room.name.replace(/'/g, "\\'") %>', '<%= period.name.replace(/'/g, "\\'") %>', '<%= currentDate %>', '<%= (booking.firstname + ' ' + booking.lastname + ' (' + booking.username + ')').replace(/'/g, "\\'") %>', '<%= (booking.notes || 'Keine Angabe').replace(/'/g, "\\'") %>')"
+                                    onclick="openDetailModal('<%= room.name.replace(/'/g, "\\'") %>', '<%= period.name.replace(/'/g, "\\'") %>', '<%= currentDate %>', '<%= (booking.firstname + ' ' + booking.lastname + ' (' + booking.username + ')').replace(/'/g, "\\'") %>', '<%= (booking.notes || 'Keine Angabe').replace(/'/g, "\\'") %>')"
                                 <% } %>
                             >
                                 <div class="slot-content">
@@ -212,7 +219,15 @@
 
                                     <% if (isMine || authlevel === 1) { %>
                                         <div class="slot-actions-bar" style="display: flex; gap: 4px; align-items: center; justify-content: flex-end; margin-top: 4px;" onclick="event.stopPropagation()">
-                                            <button type="button" class="btn-slot-cancel" style="background: rgba(59, 130, 246, 0.15); color: #3b82f6; border-color: rgba(59, 130, 246, 0.3);" title="Buchung bearbeiten" onclick="event.stopPropagation(); openEditBookingModal('<%= booking.booking_id %>', '<%= (booking.notes || "").replace(/'/g, "\\'") %>', '<%= room.name.replace(/'/g, "\\'") %>', '<%= period.name.replace(/'/g, "\\'") %>', '<%= currentDate %>', false, '', '', '', '<%= (booking.displayname || booking.username).replace(/'/g, "\\'") %>')">
+                                            <button type="button" class="btn-slot-cancel" style="background: rgba(59, 130, 246, 0.15); color: #3b82f6; border-color: rgba(59, 130, 246, 0.3);" title="Buchung bearbeiten"
+                                                data-booking-id="<%= booking.booking_id %>"
+                                                data-notes="<%= booking.notes || '' %>"
+                                                data-room-name="<%= room.name %>"
+                                                data-period-name="<%= period.name %>"
+                                                data-date="<%= currentDate %>"
+                                                data-is-timetable="false"
+                                                data-user-name="<%= booking.displayname || booking.username %>"
+                                                onclick="handleEditBtnClick(event, this)">
                                                 ✏️
                                             </button>
                                             <form action="/bookings/cancel" method="POST" class="cancel-form" onsubmit="return confirm('Möchten Sie diese Buchung wirklich stornieren?');" onclick="event.stopPropagation()">
@@ -231,9 +246,19 @@
                             <!-- Static Timetabled Block Cell -->
                             <td class="slot booked slot-static clickable"
                                 <% if (authlevel === 1) { %>
-                                onclick="openEditBookingModal('<%= timetable.booking_id %>', '<%= (timetable.notes || "Unterricht").replace(/'/g, "\\'") %>', '<%= room.name.replace(/'/g, "\\'") %>', '<%= period.name.replace(/'/g, "\\'") %>', '<%= currentDate %>', true, '<%= timetable.week_id || "" %>', '<%= timetable.date_start || currentDate %>', '<%= timetable.date_end || "" %>', '<%= (timetable.displayname || timetable.username || "Stundenplan").replace(/'/g, "\\'") %>')"
+                                    data-booking-id="<%= timetable.booking_id %>"
+                                    data-notes="<%= timetable.notes || 'Unterricht' %>"
+                                    data-room-name="<%= room.name %>"
+                                    data-period-name="<%= period.name %>"
+                                    data-date="<%= currentDate %>"
+                                    data-is-timetable="true"
+                                    data-week-id="<%= timetable.week_id || '' %>"
+                                    data-date-start="<%= timetable.date_start || currentDate %>"
+                                    data-date-end="<%= timetable.date_end || '' %>"
+                                    data-user-name="<%= timetable.displayname || timetable.username || 'Stundenplan' %>"
+                                    onclick="handleEditBtnClick(event, this)"
                                 <% } else { %>
-                                onclick="openDetailModal('<%= room.name.replace(/'/g, "\\'") %>', '<%= period.name.replace(/'/g, "\\'") %>', '<%= currentDate %>', 'Stundenplan', '<%= (timetable.notes || "Regulärer Unterricht").replace(/'/g, "\\'") %>')"
+                                    onclick="openDetailModal('<%= room.name.replace(/'/g, "\\'") %>', '<%= period.name.replace(/'/g, "\\'") %>', '<%= currentDate %>', 'Stundenplan', '<%= (timetable.notes || "Regulärer Unterricht").replace(/'/g, "\\'") %>')"
                                 <% } %>
                             >
                                 <div class="slot-content">
@@ -256,7 +281,18 @@
 
                                     <% if (authlevel === 1) { %>
                                         <div class="slot-actions-bar" style="display: flex; gap: 4px; align-items: center; justify-content: flex-end; margin-top: 4px;" onclick="event.stopPropagation()">
-                                            <button type="button" class="btn-slot-cancel" style="background: rgba(59, 130, 246, 0.15); color: #3b82f6; border-color: rgba(59, 130, 246, 0.3);" title="Dauerbuchung bearbeiten" onclick="event.stopPropagation(); openEditBookingModal('<%= timetable.booking_id %>', '<%= (timetable.notes || "Unterricht").replace(/'/g, "\\'") %>', '<%= room.name.replace(/'/g, "\\'") %>', '<%= period.name.replace(/'/g, "\\'") %>', '<%= currentDate %>', true, '<%= timetable.week_id || "" %>', '<%= timetable.date_start || currentDate %>', '<%= timetable.date_end || "" %>', '<%= (timetable.displayname || timetable.username || "Stundenplan").replace(/'/g, "\\'") %>')">
+                                            <button type="button" class="btn-slot-cancel" style="background: rgba(59, 130, 246, 0.15); color: #3b82f6; border-color: rgba(59, 130, 246, 0.3);" title="Dauerbuchung bearbeiten"
+                                                data-booking-id="<%= timetable.booking_id %>"
+                                                data-notes="<%= timetable.notes || 'Unterricht' %>"
+                                                data-room-name="<%= room.name %>"
+                                                data-period-name="<%= period.name %>"
+                                                data-date="<%= currentDate %>"
+                                                data-is-timetable="true"
+                                                data-week-id="<%= timetable.week_id || '' %>"
+                                                data-date-start="<%= timetable.date_start || currentDate %>"
+                                                data-date-end="<%= timetable.date_end || '' %>"
+                                                data-user-name="<%= timetable.displayname || timetable.username || 'Stundenplan' %>"
+                                                onclick="handleEditBtnClick(event, this)">
                                                 ✏️
                                             </button>
                                             <form action="/admin/timetables/delete" method="POST" class="cancel-form" onsubmit="return confirm('Möchten Sie diesen Stundenplaneintrag wirklich löschen?');" onclick="event.stopPropagation()">

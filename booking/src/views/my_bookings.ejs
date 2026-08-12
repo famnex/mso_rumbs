@@ -93,7 +93,19 @@
                             <td style="padding: 16px; text-align: right;">
                                 <% if (!showArchive) { %>
                                     <div style="display: inline-flex; gap: 6px; align-items: center;">
-                                        <button type="button" class="btn-secondary" style="padding: 8px 12px; font-size: 12.5px; font-weight: 700; border-radius: 10px; cursor: pointer;" onclick="openEditBookingModal('<%= booking.booking_id %>', '<%= (booking.notes || '').replace(/'/g, "\\'") %>', '<%= (booking.room_name || 'Raum').replace(/'/g, "\\'") %>', '<%= (booking.period_name || 'Stunde').replace(/'/g, "\\'") %>', '<%= booking.date || '' %>', <%= booking.date ? 'false' : 'true' %>, '<%= booking.week_id || '' %>', '<%= booking.date_start || '' %>', '<%= booking.date_end || '' %>', '<%= (booking.displayname || booking.username || 'Sie selbst').replace(/'/g, "\\'") %>', '/bookings/my-bookings')">
+                                        <button type="button" class="btn-secondary" style="padding: 8px 12px; font-size: 12.5px; font-weight: 700; border-radius: 10px; cursor: pointer;"
+                                            data-booking-id="<%= booking.booking_id %>"
+                                            data-notes="<%= booking.notes || '' %>"
+                                            data-room-name="<%= booking.room_name || 'Raum' %>"
+                                            data-period-name="<%= booking.period_name || 'Stunde' %>"
+                                            data-date="<%= booking.date || '' %>"
+                                            data-is-timetable="<%= booking.date ? 'false' : 'true' %>"
+                                            data-week-id="<%= booking.week_id || '' %>"
+                                            data-date-start="<%= booking.date_start || '' %>"
+                                            data-date-end="<%= booking.date_end || '' %>"
+                                            data-user-name="<%= booking.displayname || booking.username || 'Sie selbst' %>"
+                                            data-redirect-to="/bookings/my-bookings"
+                                            onclick="handleEditBtnClick(event, this)">
                                             ✏️ Bearbeiten
                                         </button>
                                         <form action="/bookings/cancel" method="POST" onsubmit="return confirm('Möchten Sie diese Reservierung wirklich stornieren?');" style="margin: 0; display: inline-block;">
