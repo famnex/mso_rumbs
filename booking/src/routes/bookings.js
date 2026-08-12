@@ -559,6 +559,7 @@ router.get('/bookings/my-bookings', requireLogin, async (req, res) => {
             showArchive,
             currentPage: page,
             totalPages,
+            loadBookingScript: true,
             error: req.session.error || null,
             success: req.session.success || null
         });
