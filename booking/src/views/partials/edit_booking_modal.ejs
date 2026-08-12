@@ -1,0 +1,76 @@
+<!-- Universal Edit Booking & Timetable Block Modal -->
+<div id="edit-booking-modal" class="modal-overlay hidden" onclick="closeModal('edit-booking-modal')">
+    <div class="modal-card card" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h3 id="edit-booking-modal-title">✏️ Buchung bearbeiten</h3>
+            <button class="btn-close-modal" onclick="closeModal('edit-booking-modal')">&times;</button>
+        </div>
+        <p class="modal-desc">Passen Sie die Details dieser Buchung an.</p>
+        
+        <form action="/bookings/edit" method="POST" class="modern-form compact">
+            <input type="hidden" name="booking_id" id="edit-booking-id">
+            <input type="hidden" name="room_id" id="edit-booking-room-id" value="<%= typeof room !== 'undefined' && room ? room.room_id : '' %>">
+            <input type="hidden" name="date" id="edit-booking-date" value="<%= typeof selectedDate !== 'undefined' ? selectedDate : '' %>">
+            <input type="hidden" name="redirect_to" id="edit-booking-redirect-to" value="">
+
+            <div class="form-row" style="margin-bottom: 12px;">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>Medium / Raum</label>
+                    <input type="text" id="edit-booking-room-name" readonly class="input-readonly" style="padding: 10px;">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>Datum / Wochentag</label>
+                    <input type="text" id="edit-booking-date-formatted" readonly class="input-readonly" style="padding: 10px;">
+                </div>
+            </div>
+
+            <div class="form-row" style="margin-bottom: 12px;">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>Unterrichtsstunde</label>
+                    <input type="text" id="edit-booking-period-name" readonly class="input-readonly" style="padding: 10px;">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>Gebucht von</label>
+                    <input type="text" id="edit-booking-user" readonly class="input-readonly" style="padding: 10px;">
+                </div>
+            </div>
+
+            <% if (typeof authlevel !== 'undefined' && authlevel === 1) { %>
+                <!-- Timetable specific fields (Turnus, Von, Bis) for Admins -->
+                <div id="edit-timetable-fields-group" class="hidden">
+                    <div class="form-group" style="margin-bottom: 12px;">
+                        <label for="edit-booking-week-id">Wiederholung (Turnus)</label>
+                        <select name="week_id" id="edit-booking-week-id" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); font-weight: 600;">
+                            <option value="">Wöchentlich (Jede Woche)</option>
+                            <% if (typeof weeks !== 'undefined' && weeks && weeks.length) { %>
+                                <% weeks.forEach(wk => { %>
+                                    <option value="<%= wk.week_id %>"><%= wk.name %></option>
+                                <% }) %>
+                            <% } %>
+                        </select>
+                    </div>
+
+                    <div class="form-row" style="margin-bottom: 12px;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="edit-booking-date-start">Gültig von (Startdatum)</label>
+                            <input type="date" name="date_start" id="edit-booking-date-start" style="padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); font-weight: 600; width: 100%;">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="edit-booking-date-end">Gültig bis (Enddatum)</label>
+                            <input type="date" name="date_end" id="edit-booking-date-end" style="padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); font-weight: 600; width: 100%;">
+                        </div>
+                    </div>
+                </div>
+            <% } %>
+
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label for="edit-booking-notes">Verwendungszweck / Klasse</label>
+                <input type="text" name="notes" id="edit-booking-notes" placeholder="z. B. 10b Informatik" required style="padding: 12px;">
+            </div>
+
+            <button type="submit" class="btn-primary-block" style="width: 100%;">
+                <span>💾 Änderungen speichern</span>
+            </button>
+        </form>
+    </div>
+</div>
