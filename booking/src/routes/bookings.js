@@ -97,21 +97,24 @@ router.get('/bookings', requireLogin, async (req, res) => {
             if (wk) weekName = wk.name;
         }
 
-        // Pre-fetch bookings for this room in this week
-        const bookingRows = await dbQuery.all(
-            `SELECT b.*, u.displayname, u.username, u.firstname, u.lastname
+        // Pre-fetch ALL active bookings for this room across all dates for client-side live collision checking
+        const allRoomBookings = await dbQuery.all(
+            `SELECT b.*, u.displayname, u.username, u.firstname, u.lastname, w.name as week_name
              FROM bookings b
              LEFT JOIN users u ON b.user_id = u.user_id
-             WHERE b.room_id = ? AND b.cancelled = 0 AND (b.date IN (?, ?, ?, ?, ?) OR b.date IS NULL)`,
-            [roomId, ...weekDates]
+             LEFT JOIN weeks w ON b.week_id = w.week_id
+             WHERE b.room_id = ? AND b.cancelled = 0`,
+            [roomId]
         );
 
         // Map bookings into a fast lookup grid cache: date_period or dayNum_period (for timetable lessons)
         const gridBookings = {};
-        for (const b of bookingRows) {
+        for (const b of allRoomBookings) {
             if (b.date) {
-                // Specific single date booking
-                gridBookings[`${b.date}_${b.period_id}`] = b;
+                // Specific single date booking (only map into grid if in current weekDates)
+                if (weekDates.includes(b.date)) {
+                    gridBookings[`${b.date}_${b.period_id}`] = b;
+                }
             } else if (b.day_num !== null) {
                 // Timetabled recurring lesson (e.g. A/B week)
                 // Display it only if it fits the current week type (A/B) OR applies to every week (week_id is null or 0)
@@ -174,7 +177,7 @@ router.get('/bookings', requireLogin, async (req, res) => {
             prevWeek: prevWeekDate.toISOString().split('T')[0],
             nextWeek: nextWeekDate.toISOString().split('T')[0],
             gridBookings,
-            bookingRows,
+            bookingRows: allRoomBookings,
             holidayMap,
             academicYear,
             isOutsideAcademicYear,
