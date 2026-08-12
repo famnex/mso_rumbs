@@ -309,13 +309,14 @@ router.post('/bookings/add', requireLogin, async (req, res) => {
                 const singleBookings = await dbQuery.all(singleQuery, singleParams);
                 for (const sb of singleBookings) {
                     const sbParts = sb.date.split('-');
-                    const sbDateObj = new Date(sbParts[0], sbParts[1] - 1, sbParts[2]);
-                    const sbDay = sbDateObj.getDay();
+                    if (sbParts.length !== 3) continue;
+                    const sbUtc = new Date(Date.UTC(parseInt(sbParts[0]), parseInt(sbParts[1]) - 1, parseInt(sbParts[2])));
+                    const sbDay = sbUtc.getUTCDay();
                     if (sbDay === day_num) {
-                        // Calculate Monday for sb.date
+                        // Calculate Monday for sb.date in UTC
                         const mOffset = sbDay === 0 ? -6 : 1 - sbDay;
-                        sbDateObj.setDate(sbDateObj.getDate() + mOffset);
-                        const sbMonday = sbDateObj.toISOString().split('T')[0];
+                        sbUtc.setUTCDate(sbUtc.getUTCDate() + mOffset);
+                        const sbMonday = sbUtc.toISOString().split('T')[0];
 
                         const sbWeekMap = await dbQuery.get("SELECT week_id FROM weekdates WHERE date = ?", [sbMonday]);
                         const sbWeekId = sbWeekMap ? sbWeekMap.week_id : null;

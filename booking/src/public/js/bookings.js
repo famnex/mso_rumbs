@@ -186,14 +186,14 @@ function checkModalCollisions() {
         if (targetWeekId) {
             let bWeekId = b.week_id;
             if (b.date) {
-                // Determine Monday of b.date to look up turnus in window.currentWeekDatesMap
+                // Determine Monday of b.date in UTC to look up turnus in window.currentWeekDatesMap
                 const p = b.date.split('-');
                 if (p.length === 3) {
-                    const d = new Date(p[0], p[1] - 1, p[2]);
-                    const dDay = d.getDay();
+                    const d = new Date(Date.UTC(parseInt(p[0]), parseInt(p[1]) - 1, parseInt(p[2])));
+                    const dDay = d.getUTCDay();
                     const mOffset = dDay === 0 ? -6 : 1 - dDay;
-                    d.setDate(d.getDate() + mOffset);
-                    const bMondayStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                    d.setUTCDate(d.getUTCDate() + mOffset);
+                    const bMondayStr = d.toISOString().split('T')[0];
                     if (window.currentWeekDatesMap && window.currentWeekDatesMap[bMondayStr]) {
                         bWeekId = parseInt(window.currentWeekDatesMap[bMondayStr]);
                     }
