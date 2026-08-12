@@ -168,7 +168,6 @@
                                         <p><strong>Raum:</strong> <%= room.name %></p>
                                         <p><strong>Stunde:</strong> <%= period.name %> (<%= period.time_start.slice(0, 5) %> - <%= period.time_end.slice(0, 5) %>)</p>
                                         <p><strong>Gebucht von:</strong> <%= booking.firstname %> <%= booking.lastname %> (<%= booking.username %>)</p>
-                                        <p><strong>E-Mail:</strong> <%= booking.email || 'Nicht angegeben' %></p>
                                         <% if (booking.notes) { %>
                                             <p><strong>Notiz:</strong> "<%= booking.notes %>"</p>
                                         <% } %>
@@ -292,6 +291,18 @@
                             <% }) %>
                         <% } %>
                     </select>
+                </div>
+
+                <!-- Date Range Group for Timetable Bookings (Von - Bis) -->
+                <div class="form-row hidden" id="modal-date-range-group" style="margin-bottom: 15px;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label for="modal-date-start">Gültig von (Startdatum)</label>
+                        <input type="date" name="date_start" id="modal-date-start" onchange="checkModalCollisions()" style="padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); font-weight: 600; width: 100%;">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label for="modal-date-end">Gültig bis (Enddatum)</label>
+                        <input type="date" name="date_end" id="modal-date-end" onchange="onBisDateChange(this.value)" style="padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); font-weight: 600; width: 100%;">
+                    </div>
                 </div>
             <% } %>
 

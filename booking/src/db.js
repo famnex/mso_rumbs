@@ -78,8 +78,12 @@ async function initializeDatabase() {
             user_id INTEGER,
             date TEXT,
             notes TEXT,
-            cancelled INTEGER NOT NULL DEFAULT 0
+            cancelled INTEGER NOT NULL DEFAULT 0,
+            date_start TEXT,
+            date_end TEXT
         );`);
+        try { await dbQuery.run("ALTER TABLE bookings ADD COLUMN date_start TEXT;"); } catch(e){}
+        try { await dbQuery.run("ALTER TABLE bookings ADD COLUMN date_end TEXT;"); } catch(e){}
 
         // 3. departments
         await dbQuery.run(`CREATE TABLE IF NOT EXISTS departments (

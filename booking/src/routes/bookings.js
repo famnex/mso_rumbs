@@ -116,6 +116,11 @@ router.get('/bookings', requireLogin, async (req, res) => {
                 // Timetabled recurring lesson (e.g. A/B week)
                 // Display it only if it fits the current week type (A/B) OR applies to every week (week_id is null or 0)
                 if (!b.week_id || b.week_id == currentWeekId) {
+                    const targetWeekDate = weekDates[b.day_num - 1]; // e.g. 1 (Monday) -> weekDates[0]
+                    if (targetWeekDate) {
+                        if (b.date_start && b.date_start > targetWeekDate) continue;
+                        if (b.date_end && b.date_end < targetWeekDate) continue;
+                    }
                     gridBookings[`day_${b.day_num}_${b.period_id}`] = b;
                 }
             }
@@ -235,33 +240,37 @@ router.post('/bookings/add', requireLogin, async (req, res) => {
         const isOverwrite = req.session.authlevel === 1 && req.body.overwrite === '1';
 
         if (booking_type === 'timetable' && req.session.authlevel === 1) {
-            // Permanent timetable block
+            // Permanent timetable block with validity date range (Von - Bis)
             const parts = date.split('-');
             const parsedDate = new Date(parts[0], parts[1] - 1, parts[2]);
             const day_num = parsedDate.getDay(); // 1 = Monday, ..., 5 = Friday
             const targetWeekId = week_id ? parseInt(week_id) : null;
+            const targetDateStart = req.body.date_start || date;
+            const targetDateEnd = req.body.date_end || null;
 
-            // Check if there's already a timetable block for this day, period, and week rotation
+            // Check if there's already a timetable block for this day, period, and week rotation with overlapping dates
             let existing;
+            let query = `SELECT b.*, u.displayname, u.username, w.name as week_name
+                         FROM bookings b
+                         LEFT JOIN users u ON b.user_id = u.user_id
+                         LEFT JOIN weeks w ON b.week_id = w.week_id
+                         WHERE b.room_id = ? AND b.period_id = ? AND b.day_num = ? AND b.date IS NULL AND b.cancelled = 0`;
+            let params = [room_id, period_id, day_num];
+
             if (targetWeekId) {
-                existing = await dbQuery.get(
-                    `SELECT b.*, u.displayname, u.username, w.name as week_name
-                     FROM bookings b
-                     LEFT JOIN users u ON b.user_id = u.user_id
-                     LEFT JOIN weeks w ON b.week_id = w.week_id
-                     WHERE b.room_id = ? AND b.period_id = ? AND b.day_num = ? AND (b.week_id = ? OR b.week_id IS NULL) AND b.date IS NULL AND b.cancelled = 0`,
-                    [room_id, period_id, day_num, targetWeekId]
-                );
-            } else {
-                existing = await dbQuery.get(
-                    `SELECT b.*, u.displayname, u.username, w.name as week_name
-                     FROM bookings b
-                     LEFT JOIN users u ON b.user_id = u.user_id
-                     LEFT JOIN weeks w ON b.week_id = w.week_id
-                     WHERE b.room_id = ? AND b.period_id = ? AND b.day_num = ? AND b.date IS NULL AND b.cancelled = 0`,
-                    [room_id, period_id, day_num]
-                );
+                query += ` AND (b.week_id = ? OR b.week_id IS NULL)`;
+                params.push(targetWeekId);
             }
+
+            if (targetDateStart && targetDateEnd) {
+                query += ` AND (b.date_end IS NULL OR b.date_end >= ?) AND (b.date_start IS NULL OR b.date_start <= ?)`;
+                params.push(targetDateStart, targetDateEnd);
+            } else if (targetDateStart) {
+                query += ` AND (b.date_end IS NULL OR b.date_end >= ?)`;
+                params.push(targetDateStart);
+            }
+
+            existing = await dbQuery.get(query, params);
 
             if (existing) {
                 if (isOverwrite) {
@@ -276,10 +285,11 @@ router.post('/bookings/add', requireLogin, async (req, res) => {
                 }
             }
 
-            // Insert new timetabled block
+            // Insert new timetabled block with date_start and date_end
             await dbQuery.run(
-                `INSERT INTO bookings (room_id, period_id, user_id, date, notes, cancelled, day_num, week_id) VALUES (?, ?, ?, NULL, ?, 0, ?, ?)`,
-                [room_id, period_id, req.session.userId, notes || 'Unterricht', day_num, targetWeekId]
+                `INSERT INTO bookings (room_id, period_id, user_id, date, notes, cancelled, day_num, week_id, date_start, date_end) 
+                 VALUES (?, ?, ?, NULL, ?, 0, ?, ?, ?, ?)`,
+                [room_id, period_id, req.session.userId, notes || 'Unterricht', day_num, targetWeekId, targetDateStart, targetDateEnd]
             );
 
             req.session.success = isOverwrite ? 'Stundenplanblockierung gespeichert und bestehende Kollision überschrieben!' : 'Stundenplanblockierung erfolgreich gespeichert!';

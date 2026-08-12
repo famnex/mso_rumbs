@@ -16,12 +16,14 @@ Enthält alle getätigten Buchungen für Räume.
 - `booking_id` (INT(6), unsigned, auto_increment, Primary Key): Eindeutige ID der Buchung.
 - `period_id` (INT(6), unsigned, NOT NULL): ID des Unterrichtszeitraums (Stunde).
 - `week_id` (INT(6), unsigned, NULL): ID der Woche (bei wöchentlich wiederkehrenden Plänen).
-- `day_num` (TINYINT(1), unsigned, NULL): Wochentag als Nummer.
+- `day_num` (TINYINT(1), unsigned, NULL): Wochentag als Nummer (1 = Mo, 5 = Fr).
 - `room_id` (INT(6), unsigned, NOT NULL): ID des Raumes.
 - `user_id` (INT(6), unsigned, NULL): ID des buchenden Benutzers.
 - `date` (DATE, NULL): Konkretes Datum der Buchung (für Einzelbuchungen).
 - `notes` (VARCHAR(100), NULL): Optionale Notiz/Bemerkung zur Buchung.
 - `cancelled` (TINYINT(1), unsigned, NOT NULL, default '0'): Status, ob die Buchung storniert wurde.
+- `date_start` (DATE, NULL): Gültig ab Datum bei Dauerbuchungen (Stundenplanblockierungen).
+- `date_end` (DATE, NULL): Gültig bis Datum bei Dauerbuchungen (Stundenplanblockierungen).
 
 ### 3. `departments`
 Speichert die Abteilungen/Fachbereiche der Schule.
@@ -135,3 +137,7 @@ Um eine sauberere Zuordnung der Räume/Medien zu ermöglichen, wurde die klassis
 - **Datenbank-Tabelle `rooms`**: Spalte `department_id INTEGER` hinzugefügt.
 - **EJS-Views & Router**: `room.location` wurde überall durch `room.department_name` via SQL `LEFT JOIN departments d ON r.department_id = d.department_id` ersetzt.
 - **Admin-Interface**: Im Raum-Erstellungs-Formular wurde das Freitext-Feld für die Lage durch ein dynamisches Kategorie-Auswahlmenü ersetzt.
+
+### 2026-08-12: Zeitliche Begrenzung (date_start / date_end) für Stundenplan-Dauerbuchungen
+- **Datenbank-Tabelle `bookings`**: Spalten `date_start TEXT` (Gültig ab) und `date_end TEXT` (Gültig bis) hinzugefügt.
+- **Verwendungszweck**: Ermöglicht die zeitliche Begrenzung wiederkehrender Stundenplaneinträge auf bestimmte Zeiträume (z. B. 01.09.2026 bis 31.01.2027), ohne andere Zeiträume im selben Schuljahr zu blockieren.

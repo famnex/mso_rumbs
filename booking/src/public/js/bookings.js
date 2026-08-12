@@ -18,6 +18,19 @@ function openBookingModal(roomId, roomName, periodId, periodName, dateStr) {
     const dateFormatted = dateObj.toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
     document.getElementById('modal-date-formatted').value = dateFormatted;
 
+    // Set default "Von" date_start to clicked dateStr
+    const dateStartInput = document.getElementById('modal-date-start');
+    if (dateStartInput) {
+        dateStartInput.value = dateStr;
+    }
+
+    // Set "Bis" date_end from last used localStorage value
+    const dateEndInput = document.getElementById('modal-date-end');
+    if (dateEndInput) {
+        const lastBis = localStorage.getItem('last_timetable_date_end') || '';
+        dateEndInput.value = lastBis;
+    }
+
     // Reveal modal with a smooth micro-animation scaling
     modal.classList.remove('hidden');
     document.body.classList.add('modal-open');
@@ -39,6 +52,13 @@ function openBookingModal(roomId, roomName, periodId, periodName, dateStr) {
             notesInput.focus();
         }
     }, 50);
+}
+
+function onBisDateChange(val) {
+    if (val) {
+        localStorage.setItem('last_timetable_date_end', val);
+    }
+    checkModalCollisions();
 }
 
 function closeBookingModal(event = null, force = false) {
@@ -68,12 +88,14 @@ function closeBookingModal(event = null, force = false) {
 
 function toggleBookingTypeFields(type) {
     const weekGroup = document.getElementById('modal-week-rotation-group');
-    if (weekGroup) {
-        if (type === 'timetable') {
-            weekGroup.classList.remove('hidden');
-        } else {
-            weekGroup.classList.add('hidden');
-        }
+    const dateRangeGroup = document.getElementById('modal-date-range-group');
+
+    if (type === 'timetable') {
+        if (weekGroup) weekGroup.classList.remove('hidden');
+        if (dateRangeGroup) dateRangeGroup.classList.remove('hidden');
+    } else {
+        if (weekGroup) weekGroup.classList.add('hidden');
+        if (dateRangeGroup) dateRangeGroup.classList.add('hidden');
     }
     checkModalCollisions();
 }
@@ -108,6 +130,9 @@ function checkModalCollisions() {
         }
     }
 
+    const dateStartVal = document.getElementById('modal-date-start') ? document.getElementById('modal-date-start').value : dateStr;
+    const dateEndVal = document.getElementById('modal-date-end') ? document.getElementById('modal-date-end').value : '';
+
     let conflictingBooking = null;
 
     if (bookingType === 'timetable') {
@@ -118,11 +143,15 @@ function checkModalCollisions() {
             
             // If existing is single-date booking
             if (b.date) {
+                if (dateStartVal && b.date < dateStartVal) return false;
+                if (dateEndVal && b.date > dateEndVal) return false;
                 return true;
             }
             // If existing is timetable block
             if (b.date === null) {
                 if (!targetWeekId || !b.week_id || b.week_id === targetWeekId) {
+                    if (dateStartVal && b.date_end && b.date_end < dateStartVal) return false;
+                    if (dateEndVal && b.date_start && b.date_start > dateEndVal) return false;
                     return true;
                 }
             }
@@ -134,7 +163,9 @@ function checkModalCollisions() {
             if (b.period_id !== periodId) return false;
             if (b.date === dateStr) return true;
             if (b.date === null && b.day_num === dayNum) {
-                // Timetable block active on this day/period
+                // Check if timetable block date range covers dateStr
+                if (b.date_start && b.date_start > dateStr) return false;
+                if (b.date_end && b.date_end < dateStr) return false;
                 return true;
             }
             return false;
