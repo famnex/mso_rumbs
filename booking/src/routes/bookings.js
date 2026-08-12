@@ -245,8 +245,8 @@ router.post('/bookings/add', requireLogin, async (req, res) => {
             const parsedDate = new Date(parts[0], parts[1] - 1, parts[2]);
             const day_num = parsedDate.getDay(); // 1 = Monday, ..., 5 = Friday
             const targetWeekId = week_id ? parseInt(week_id) : null;
-            const targetDateStart = req.body.date_start || date;
-            const targetDateEnd = req.body.date_end || null;
+            const targetDateStart = (req.body.date_start && req.body.date_start.trim() !== '') ? req.body.date_start.trim() : date;
+            const targetDateEnd = (req.body.date_end && req.body.date_end.trim() !== '') ? req.body.date_end.trim() : null;
 
             // Check if there's already a timetable block for this day, period, and week rotation with overlapping dates
             let existing;
@@ -328,7 +328,7 @@ router.post('/bookings/add', requireLogin, async (req, res) => {
 
     } catch (e) {
         console.error('Add booking error:', e);
-        req.session.error = 'Fehler beim Speichern der Buchung.';
+        req.session.error = 'Fehler beim Speichern der Buchung: ' + (e.message || e);
         res.redirect(`/bookings?room_id=${room_id}&date=${date}`);
     }
 });
