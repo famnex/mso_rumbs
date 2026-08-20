@@ -105,15 +105,9 @@ app.use(async (req, res, next) => {
         const logoutSetting = await dbQuery.get("SELECT value FROM settings WHERE name='logout_button_text' LIMIT 1;");
         res.locals.logoutButtonText = logoutSetting ? logoutSetting.value : 'Abmelden';
 
-        if (req.session && req.session.userId) {
-            // Fetch all departments/categories
-            res.locals.headerCategories = await dbQuery.all("SELECT * FROM departments ORDER BY name ASC;");
-            // Fetch all bookable rooms
-            res.locals.headerRooms = await dbQuery.all("SELECT * FROM rooms WHERE bookable = 1 ORDER BY name ASC;");
-        } else {
-            res.locals.headerCategories = [];
-            res.locals.headerRooms = [];
-        }
+        // Fetch all departments/categories and bookable rooms for navigation & public calendar views
+        res.locals.headerCategories = await dbQuery.all("SELECT * FROM departments ORDER BY name ASC;");
+        res.locals.headerRooms = await dbQuery.all("SELECT * FROM rooms WHERE bookable = 1 ORDER BY name ASC;");
         next();
     } catch (e) {
         console.error('Locals middleware error:', e);

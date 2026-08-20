@@ -300,8 +300,11 @@ window.openEditWeekModal = function(id, name) {
 };
 
 window.openShareModal = function(roomId, dateStr) {
-    const baseUrl = window.location.origin + '/bookings/public';
-    const fullUrl = `${baseUrl}?room_id=${roomId || ''}&date=${dateStr || ''}`;
+    let basePath = '';
+    if (window.location.pathname.startsWith('/booking')) {
+        basePath = '/booking';
+    }
+    const fullUrl = `${window.location.origin}${basePath}/public?room_id=${roomId || ''}&date=${dateStr || ''}`;
     
     const input = document.getElementById('share-link-input');
     if (input) input.value = fullUrl;

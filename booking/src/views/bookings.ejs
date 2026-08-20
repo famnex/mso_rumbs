@@ -7,7 +7,7 @@
 </script>
 
 <% const isPublicView = typeof isPublicReadOnly !== 'undefined' && isPublicReadOnly; %>
-<% const routePath = isPublicView ? '/bookings/public' : '/bookings'; %>
+<% const routePath = isPublicView ? '/public' : '/bookings'; %>
 
 <% if (isPublicView) { %>
     <div style="margin-bottom: 20px; padding: 14px 20px; border-radius: 16px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); color: var(--text-main); font-size: 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
@@ -165,19 +165,19 @@
             <% periods.forEach(period => { %>
                 <tr <% if (period.color) { %>style="--period-accent-color: <%= period.color %>;"<% } %>>
                     <!-- Period Info Column -->
-                    <td class="time-col" <% if (period.color) { %>style="border-left: 5px solid <%= period.color %>; background: <%= period.color %>14;"<% } %>>
+                    <td class="time-col" <% if (period.color) { %>style="border-left: 6px solid <%= period.color %>; background: <%= period.color %>22; border-right: 2px solid <%= period.color %>40;"<% } %>>
                         <div class="period-name" <% if (period.color) { %>style="color: <%= period.color %>; font-weight: 800;"<% } %>>
                             <span class="period-name-desktop">
                                 <% if (period.color) { %>
-                                    <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: <%= period.color %>; margin-right: 6px; vertical-align: middle;"></span>
+                                    <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: <%= period.color %>; margin-right: 6px; box-shadow: 0 0 8px <%= period.color %>; vertical-align: middle;"></span>
                                 <% } %>
                                 <%= period.name %>
                             </span>
-                            <span class="period-name-mobile"><%= period.name.slice(0, 3) %></span>
+                            <span class="period-name-mobile" <% if (period.color) { %>style="color: <%= period.color %>; font-weight: 800;"<% } %>><%= period.name.slice(0, 3) %></span>
                         </div>
                         <div class="period-time">
-                            <span class="period-time-desktop" <% if (period.color) { %>style="color: <%= period.color %>; opacity: 0.95; font-weight: 600;"<% } %>><%= period.time_start.slice(0, 5) %> - <%= period.time_end.slice(0, 5) %></span>
-                            <span class="period-time-mobile"><%= period.time_start.slice(0, 5) %></span>
+                            <span class="period-time-desktop" <% if (period.color) { %>style="color: <%= period.color %>; opacity: 1; font-weight: 700;"<% } %>><%= period.time_start.slice(0, 5) %> - <%= period.time_end.slice(0, 5) %></span>
+                            <span class="period-time-mobile" <% if (period.color) { %>style="color: <%= period.color %>; font-weight: 700;"<% } %>><%= period.time_start.slice(0, 5) %></span>
                         </div>
                     </td>
 
@@ -342,16 +342,16 @@
                         <% } else { %>
                             <!-- Free Bookable Slot Cell -->
                             <% if (isPublicView) { %>
-                                <td class="slot slot-free" <% if (period.color) { %>style="background: <%= period.color %>06; border-top: 1px solid <%= period.color %>20; border-bottom: 1px solid <%= period.color %>20;"<% } %>>
+                                <td class="slot slot-free" <% if (period.color) { %>style="background: <%= period.color %>18; border-top: 1.5px solid <%= period.color %>40; border-bottom: 1.5px solid <%= period.color %>40;"<% } %>>
                                     <div class="slot-content">
-                                        <span style="color: var(--text-muted); font-size: 12px; font-weight: 600; opacity: 0.6;">Frei</span>
+                                        <span style="color: <%= period.color ? period.color : 'var(--text-muted)' %>; font-size: 12px; font-weight: 700; opacity: 0.9;">Frei</span>
                                     </div>
                                 </td>
                             <% } else { %>
-                                <td class="slot slot-free clickable" <% if (period.color) { %>style="background: <%= period.color %>06; border-top: 1px solid <%= period.color %>20; border-bottom: 1px solid <%= period.color %>20;"<% } %>
+                                <td class="slot slot-free clickable" <% if (period.color) { %>style="background: <%= period.color %>18; border-top: 1.5px solid <%= period.color %>40; border-bottom: 1.5px solid <%= period.color %>40;"<% } %>
                                     onclick="openBookingModal('<%= room.room_id %>', '<%= room.name %>', '<%= period.period_id %>', '<%= period.name %>', '<%= currentDate %>')">
                                     <div class="slot-content">
-                                        <span class="btn-slot-add">
+                                        <span class="btn-slot-add" <% if (period.color) { %>style="color: <%= period.color %>; border-color: <%= period.color %>60; background: <%= period.color %>15;"<% } %>>
                                             <span class="slot-free-desktop">+ Reservieren</span>
                                             <span class="slot-free-mobile">+</span>
                                         </span>

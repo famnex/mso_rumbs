@@ -160,8 +160,8 @@ async function fetchBookingCalendarData(req, roomId, selectedDate) {
     };
 }
 
-// GET /bookings/public (Public Read-Only Booking Calendar - No Login Required)
-router.get('/bookings/public', async (req, res) => {
+// GET /bookings/public & /public (Public Read-Only Booking Calendar - No Login Required)
+router.get(['/bookings/public', '/public'], async (req, res) => {
     try {
         let roomId = req.query.room_id;
         let selectedDate = req.query.date;
