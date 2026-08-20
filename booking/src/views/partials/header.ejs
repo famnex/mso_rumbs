@@ -160,11 +160,17 @@
                     </div>
                 </nav>
             <% } else { %>
-                <!-- Hardware-accelerated Theme Toggler (Logged Out) -->
-                <button id="theme-toggle" class="theme-btn" aria-label="Farbschema umschalten" style="margin-left: auto;">
-                    <span class="sun-icon">☀️</span>
-                    <span class="moon-icon">🌙</span>
-                </button>
+                <nav class="main-nav" style="display: flex; align-items: center; gap: 10px; margin-left: auto;">
+                    <!-- Hardware-accelerated Theme Toggler -->
+                    <button id="theme-toggle" class="theme-btn" aria-label="Farbschema umschalten">
+                        <span class="sun-icon">☀️</span>
+                        <span class="moon-icon">🌙</span>
+                    </button>
+                    
+                    <a href="/login" class="btn-sso-login" style="padding: 8px 16px; border-radius: 10px; font-size: 13px; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+                        🔑 Anmelden
+                    </a>
+                </nav>
             <% } %>
         </header>
         

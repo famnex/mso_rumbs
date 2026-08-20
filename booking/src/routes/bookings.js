@@ -18,178 +18,195 @@ router.get('/dashboard', requireLogin, (req, res) => {
     res.redirect('/bookings');
 });
 
-// GET /bookings (Wochenplaner Grid Calendar)
-router.get('/bookings', requireLogin, async (req, res) => {
-    let roomId = req.query.room_id;
-    let selectedDate = req.query.date; // Expect YYYY-MM-DD
-    
-    if (!roomId) {
-        try {
-            // Load global default category setting
-            const defaultCatSetting = await dbQuery.get("SELECT value FROM settings WHERE name='default_category_id' LIMIT 1;");
-            let firstRoom = null;
-            if (defaultCatSetting && defaultCatSetting.value) {
-                const defaultCatId = parseInt(defaultCatSetting.value);
-                firstRoom = await dbQuery.get("SELECT room_id FROM rooms WHERE department_id = ? AND bookable = 1 ORDER BY name ASC LIMIT 1;", [defaultCatId]);
-            }
-            if (!firstRoom) {
-                firstRoom = await dbQuery.get("SELECT room_id FROM rooms WHERE bookable = 1 ORDER BY name ASC LIMIT 1;");
-            }
-            if (firstRoom) {
-                return res.redirect(`/bookings?room_id=${firstRoom.room_id}${selectedDate ? '&date=' + selectedDate : ''}`);
-            } else {
-                return res.status(500).send('Keine buchbaren Medien / Räume im System vorhanden.');
-            }
-        } catch (e) {
-            console.error('Error finding first room:', e);
-            return res.status(500).send('Interner Serverfehler.');
-        }
-    }
-
+// Helper function to load all calendar data for both logged-in and public read-only views
+async function fetchBookingCalendarData(req, roomId, selectedDate) {
     if (!selectedDate) {
         selectedDate = new Date().toISOString().split('T')[0];
     }
 
+    if (!roomId) {
+        const defaultCatSetting = await dbQuery.get("SELECT value FROM settings WHERE name='default_category_id' LIMIT 1;");
+        let firstRoom = null;
+        if (defaultCatSetting && defaultCatSetting.value) {
+            const defaultCatId = parseInt(defaultCatSetting.value);
+            firstRoom = await dbQuery.get("SELECT room_id FROM rooms WHERE department_id = ? AND bookable = 1 ORDER BY name ASC LIMIT 1;", [defaultCatId]);
+        }
+        if (!firstRoom) {
+            firstRoom = await dbQuery.get("SELECT room_id FROM rooms WHERE bookable = 1 ORDER BY name ASC LIMIT 1;");
+        }
+        if (firstRoom) {
+            roomId = firstRoom.room_id;
+        }
+    }
+
+    const room = await dbQuery.get(`
+        SELECT r.*, d.name as department_name 
+        FROM rooms r 
+        LEFT JOIN departments d ON r.department_id = d.department_id 
+        WHERE r.room_id = ?;
+    `, [roomId]);
+
+    if (!room) return null;
+
+    const allRooms = await dbQuery.all("SELECT * FROM rooms WHERE bookable = 1 ORDER BY name ASC;");
+    const periods = await dbQuery.all("SELECT * FROM periods ORDER BY time_start ASC;");
+    const weeks = await dbQuery.all("SELECT * FROM weeks ORDER BY name ASC;");
+
+    const curr = new Date(selectedDate);
+    const day = curr.getDay();
+    const mondayOffset = day === 0 ? -6 : 1 - day;
+    const monday = new Date(curr.setDate(curr.getDate() + mondayOffset));
+    
+    const weekDates = [];
+    const weekDaysNames = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'];
+    for (let i = 0; i < 5; i++) {
+        const tempDate = new Date(monday);
+        tempDate.setDate(monday.getDate() + i);
+        weekDates.push(tempDate.toISOString().split('T')[0]);
+    }
+
+    const mondayStrDate = monday.toISOString().split('T')[0];
+    const weekMap = await dbQuery.get("SELECT week_id FROM weekdates WHERE date = ?", [mondayStrDate]);
+    const currentWeekId = weekMap ? weekMap.week_id : null;
+    
+    let weekName = '';
+    if (currentWeekId) {
+        const wk = await dbQuery.get("SELECT name FROM weeks WHERE week_id = ?", [currentWeekId]);
+        if (wk) weekName = wk.name;
+    }
+
+    const allRoomBookings = await dbQuery.all(
+        `SELECT b.*, u.displayname, u.username, u.firstname, u.lastname, w.name as week_name
+         FROM bookings b
+         LEFT JOIN users u ON b.user_id = u.user_id
+         LEFT JOIN weeks w ON b.week_id = w.week_id
+         WHERE b.room_id = ? AND b.cancelled = 0`,
+        [roomId]
+    );
+
+    const gridBookings = {};
+    for (const b of allRoomBookings) {
+        if (b.date) {
+            if (weekDates.includes(b.date)) {
+                gridBookings[`${b.date}_${b.period_id}`] = b;
+            }
+        } else if (b.day_num !== null) {
+            if (!b.week_id || b.week_id == currentWeekId) {
+                const targetWeekDate = weekDates[b.day_num - 1];
+                if (targetWeekDate) {
+                    if (b.date_start && b.date_start > targetWeekDate) continue;
+                    if (b.date_end && b.date_end < targetWeekDate) continue;
+                }
+                gridBookings[`day_${b.day_num}_${b.period_id}`] = b;
+            }
+        }
+    }
+
+    const schoolNameSetting = await dbQuery.get("SELECT value FROM settings WHERE name='name' LIMIT 1;");
+    const schoolName = schoolNameSetting ? schoolNameSetting.value : 'Raumbelegung MSO';
+
+    const prevWeekDate = new Date(monday);
+    prevWeekDate.setDate(monday.getDate() - 7);
+    const nextWeekDate = new Date(monday);
+    nextWeekDate.setDate(monday.getDate() + 7);
+
+    const holidays = await dbQuery.all("SELECT * FROM holidays;");
+    const holidayMap = {};
+    for (const dateStr of weekDates) {
+        const targetTime = new Date(dateStr).getTime();
+        const matchingHoliday = holidays.find(h => {
+            const start = new Date(h.date_start).getTime();
+            const end = new Date(h.date_end).getTime();
+            return targetTime >= start && targetTime <= end;
+        });
+        holidayMap[dateStr] = matchingHoliday ? matchingHoliday.name : null;
+    }
+
+    const defaultCatSetting = await dbQuery.get("SELECT value FROM settings WHERE name='default_category_id' LIMIT 1;");
+    const systemDefaultCategoryId = (defaultCatSetting && defaultCatSetting.value) ? parseInt(defaultCatSetting.value) : null;
+
+    const allWeekDates = await dbQuery.all("SELECT * FROM weekdates;");
+    const weekDatesMap = {};
+    for (const r of allWeekDates) {
+        weekDatesMap[r.date] = r.week_id;
+    }
+
+    const academicYear = await dbQuery.get("SELECT * FROM academicyears LIMIT 1;");
+    const isOutsideAcademicYear = (academicYear && academicYear.date_start && academicYear.date_end) ? (weekDates[4] < academicYear.date_start || weekDates[0] > academicYear.date_end) : false;
+
+    const headerCategories = await dbQuery.all("SELECT * FROM departments ORDER BY name ASC;");
+
+    return {
+        schoolName,
+        room,
+        allRooms,
+        periods,
+        weeks,
+        weekDates,
+        weekDaysNames,
+        selectedDate,
+        mondayStr: monday.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+        weekName,
+        prevWeek: prevWeekDate.toISOString().split('T')[0],
+        nextWeek: nextWeekDate.toISOString().split('T')[0],
+        gridBookings,
+        bookingRows: allRoomBookings,
+        holidayMap,
+        weekDatesMap,
+        academicYear,
+        isOutsideAcademicYear,
+        systemDefaultCategoryId,
+        headerCategories
+    };
+}
+
+// GET /bookings/public (Public Read-Only Booking Calendar - No Login Required)
+router.get('/bookings/public', async (req, res) => {
     try {
-        const room = await dbQuery.get(`
-            SELECT r.*, d.name as department_name 
-            FROM rooms r 
-            LEFT JOIN departments d ON r.department_id = d.department_id 
-            WHERE r.room_id = ?;
-        `, [roomId]);
-        if (!room) {
+        let roomId = req.query.room_id;
+        let selectedDate = req.query.date;
+        const data = await fetchBookingCalendarData(req, roomId, selectedDate);
+        if (!data) {
+            req.session.error = 'Der ausgewählte Raum existiert nicht.';
+            return res.redirect('/login');
+        }
+
+        res.render('bookings', {
+            ...data,
+            title: `${data.room.name} (Öffentlicher Belegungsplan)`,
+            displayName: (req.session && req.session.displayName) ? req.session.displayName : null,
+            authlevel: (req.session && req.session.authlevel) ? req.session.authlevel : 0,
+            currentUserId: (req.session && req.session.userId) ? req.session.userId : null,
+            isPublicReadOnly: true,
+            loadBookingScript: true,
+            error: null,
+            success: null
+        });
+    } catch (e) {
+        console.error('Public bookings load error:', e);
+        res.status(500).send('Interner Serverfehler.');
+    }
+});
+
+// GET /bookings (Wochenplaner Grid Calendar)
+router.get('/bookings', requireLogin, async (req, res) => {
+    let roomId = req.query.room_id;
+    let selectedDate = req.query.date;
+    
+    try {
+        const data = await fetchBookingCalendarData(req, roomId, selectedDate);
+        if (!data) {
             req.session.error = 'Der ausgewählte Raum existiert nicht.';
             return res.redirect('/bookings');
         }
 
-        // Fetch all rooms for the selection dropdown
-        const allRooms = await dbQuery.all("SELECT * FROM rooms WHERE bookable = 1 ORDER BY name ASC;");
-
-        // Fetch all periods
-        const periods = await dbQuery.all("SELECT * FROM periods ORDER BY time_start ASC;");
-
-        // Fetch all weeks (A/B-Wochen)
-        const weeks = await dbQuery.all("SELECT * FROM weeks ORDER BY name ASC;");
-
-        // Calculate the Monday to Friday dates of the selected date's week
-        const curr = new Date(selectedDate);
-        const day = curr.getDay(); // 0 is Sunday, 1 is Monday
-        const mondayOffset = day === 0 ? -6 : 1 - day; // Adjust if Sunday
-        
-        const monday = new Date(curr.setDate(curr.getDate() + mondayOffset));
-        
-        const weekDates = [];
-        const weekDaysNames = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'];
-        for (let i = 0; i < 5; i++) {
-            const tempDate = new Date(monday);
-            tempDate.setDate(monday.getDate() + i);
-            weekDates.push(tempDate.toISOString().split('T')[0]);
-        }
-
-        // Find if this monday is assigned to a week type (A-Woche / B-Woche)
-        const mondayStrDate = monday.toISOString().split('T')[0];
-        const weekMap = await dbQuery.get("SELECT week_id FROM weekdates WHERE date = ?", [mondayStrDate]);
-        const currentWeekId = weekMap ? weekMap.week_id : null;
-        
-        let weekName = '';
-        if (currentWeekId) {
-            const wk = await dbQuery.get("SELECT name FROM weeks WHERE week_id = ?", [currentWeekId]);
-            if (wk) weekName = wk.name;
-        }
-
-        // Pre-fetch ALL active bookings for this room across all dates for client-side live collision checking
-        const allRoomBookings = await dbQuery.all(
-            `SELECT b.*, u.displayname, u.username, u.firstname, u.lastname, w.name as week_name
-             FROM bookings b
-             LEFT JOIN users u ON b.user_id = u.user_id
-             LEFT JOIN weeks w ON b.week_id = w.week_id
-             WHERE b.room_id = ? AND b.cancelled = 0`,
-            [roomId]
-        );
-
-        // Map bookings into a fast lookup grid cache: date_period or dayNum_period (for timetable lessons)
-        const gridBookings = {};
-        for (const b of allRoomBookings) {
-            if (b.date) {
-                // Specific single date booking (only map into grid if in current weekDates)
-                if (weekDates.includes(b.date)) {
-                    gridBookings[`${b.date}_${b.period_id}`] = b;
-                }
-            } else if (b.day_num !== null) {
-                // Timetabled recurring lesson (e.g. A/B week)
-                // Display it only if it fits the current week type (A/B) OR applies to every week (week_id is null or 0)
-                if (!b.week_id || b.week_id == currentWeekId) {
-                    const targetWeekDate = weekDates[b.day_num - 1]; // e.g. 1 (Monday) -> weekDates[0]
-                    if (targetWeekDate) {
-                        if (b.date_start && b.date_start > targetWeekDate) continue;
-                        if (b.date_end && b.date_end < targetWeekDate) continue;
-                    }
-                    gridBookings[`day_${b.day_num}_${b.period_id}`] = b;
-                }
-            }
-        }
-
-        const schoolNameSetting = await dbQuery.get("SELECT value FROM settings WHERE name='name' LIMIT 1;");
-        const schoolName = schoolNameSetting ? schoolNameSetting.value : 'Raumbelegung MSO';
-
-        // Calculate next / prev week dates for navigation
-        const prevWeekDate = new Date(monday);
-        prevWeekDate.setDate(monday.getDate() - 7);
-        const nextWeekDate = new Date(monday);
-        nextWeekDate.setDate(monday.getDate() + 7);
-
-        // Fetch all holidays and construct a holiday map for the 5 week dates
-        const holidays = await dbQuery.all("SELECT * FROM holidays;");
-        const holidayMap = {};
-        for (const dateStr of weekDates) {
-            const targetTime = new Date(dateStr).getTime();
-            const matchingHoliday = holidays.find(h => {
-                const start = new Date(h.date_start).getTime();
-                const end = new Date(h.date_end).getTime();
-                return targetTime >= start && targetTime <= end;
-            });
-            holidayMap[dateStr] = matchingHoliday ? matchingHoliday.name : null;
-        }
-
-        // Fetch system-wide default category setting
-        const defaultCatSetting = await dbQuery.get("SELECT value FROM settings WHERE name='default_category_id' LIMIT 1;");
-        const systemDefaultCategoryId = (defaultCatSetting && defaultCatSetting.value) ? parseInt(defaultCatSetting.value) : null;
-
-        // Fetch all mapped weekdates into a lookup map
-        const allWeekDates = await dbQuery.all("SELECT * FROM weekdates;");
-        const weekDatesMap = {};
-        for (const r of allWeekDates) {
-            weekDatesMap[r.date] = r.week_id;
-        }
-
-        // Fetch active academic year
-        const academicYear = await dbQuery.get("SELECT * FROM academicyears LIMIT 1;");
-        const isOutsideAcademicYear = (academicYear && academicYear.date_start && academicYear.date_end) ? (weekDates[4] < academicYear.date_start || weekDates[0] > academicYear.date_end) : false;
-
         res.render('bookings', {
+            ...data,
             title: 'Belegungsplan',
-            schoolName,
             displayName: req.session.displayName,
             authlevel: req.session.authlevel,
             currentUserId: req.session.userId,
-            room,
-            allRooms,
-            periods,
-            weeks,
-            weekDates,
-            weekDaysNames,
-            selectedDate,
-            mondayStr: monday.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }),
-            weekName,
-            prevWeek: prevWeekDate.toISOString().split('T')[0],
-            nextWeek: nextWeekDate.toISOString().split('T')[0],
-            gridBookings,
-            bookingRows: allRoomBookings,
-            holidayMap,
-            weekDatesMap,
-            academicYear,
-            isOutsideAcademicYear,
-            systemDefaultCategoryId,
+            isPublicReadOnly: false,
             loadBookingScript: true,
             error: req.session.error || null,
             success: req.session.success || null

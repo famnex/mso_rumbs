@@ -1,0 +1,29 @@
+<!-- Share Public Link Modal -->
+<div id="share-modal" class="modal-overlay hidden" onclick="closeModal('share-modal')">
+    <div class="modal-card card" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h3>🔗 Belegungsplan öffentlich teilen</h3>
+            <button class="btn-close-modal" onclick="closeModal('share-modal')">&times;</button>
+        </div>
+        <p class="modal-desc">Teilen Sie diesen Belegungsplan als schreibgeschützte Ansicht. Der Link kann von jedem ohne Anmeldung aufgerufen werden.</p>
+
+        <div class="form-group" style="margin-bottom: 20px;">
+            <label for="share-link-input">Öffentlicher Link (Nur-Lese-Zugriff)</label>
+            <div style="display: flex; gap: 8px;">
+                <input type="text" id="share-link-input" readonly class="input-readonly" style="flex: 1; padding: 10px 12px; font-weight: 600;" onclick="this.select();">
+                <button type="button" class="btn-primary" id="copy-share-btn" onclick="copyShareLink()" style="padding: 10px 18px; border-radius: 10px; font-weight: 700; white-space: nowrap;">
+                    <span>📋 Kopieren</span>
+                </button>
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+            <a id="share-preview-btn" href="#" target="_blank" class="btn-secondary" style="padding: 10px 16px; font-weight: 700; border-radius: 10px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+                <span>👁️ Öffentliche Vorschau öffnen</span>
+            </a>
+            <button type="button" class="btn-secondary" onclick="closeModal('share-modal')" style="padding: 10px 16px; font-weight: 700; border-radius: 10px;">
+                Schließen
+            </button>
+        </div>
+    </div>
+</div>

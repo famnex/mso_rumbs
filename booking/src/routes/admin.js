@@ -151,8 +151,9 @@ router.get('/admin/periods', requireAdmin, async (req, res) => {
 
 // POST /admin/periods/add
 router.post('/admin/periods/add', requireAdmin, async (req, res) => {
-    const { name, time_start, time_end, bookable } = req.body;
+    const { name, time_start, time_end, bookable, color } = req.body;
     const isBookable = bookable === '1' ? 1 : 0;
+    const periodColor = (color && color.trim() !== '') ? color.trim() : null;
 
     if (!name || !time_start || !time_end) {
         req.session.error = 'Alle Felder sind erforderlich.';
@@ -161,8 +162,8 @@ router.post('/admin/periods/add', requireAdmin, async (req, res) => {
 
     try {
         await dbQuery.run(
-            "INSERT INTO periods (name, time_start, time_end, days, bookable) VALUES (?, ?, ?, 62, ?)",
-            [name, time_start, time_end, isBookable]
+            "INSERT INTO periods (name, time_start, time_end, days, bookable, color) VALUES (?, ?, ?, 62, ?, ?)",
+            [name, time_start, time_end, isBookable, periodColor]
         );
         req.session.success = `Stunde '${name}' erfolgreich angelegt!`;
         res.redirect('/admin/periods');
@@ -731,16 +732,18 @@ router.post('/admin/rooms/edit', requireAdmin, async (req, res) => {
 
 // POST /admin/periods/edit
 router.post('/admin/periods/edit', requireAdmin, async (req, res) => {
-    const { period_id, name, time_start, time_end, bookable } = req.body;
+    const { period_id, name, time_start, time_end, bookable, color } = req.body;
     const isBookable = bookable === '1' ? 1 : 0;
+    const periodColor = (color && color.trim() !== '') ? color.trim() : null;
+
     if (!period_id || !name || !time_start || !time_end) {
         req.session.error = 'Alle Felder sind erforderlich.';
         return res.redirect('/admin/periods');
     }
     try {
         await dbQuery.run(
-            "UPDATE periods SET name = ?, time_start = ?, time_end = ?, bookable = ? WHERE period_id = ?",
-            [name, time_start, time_end, isBookable, parseInt(period_id)]
+            "UPDATE periods SET name = ?, time_start = ?, time_end = ?, bookable = ?, color = ? WHERE period_id = ?",
+            [name, time_start, time_end, isBookable, periodColor, parseInt(period_id)]
         );
         req.session.success = `Stunde '${name}' erfolgreich aktualisiert!`;
         res.redirect('/admin/periods');

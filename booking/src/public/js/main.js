@@ -60,43 +60,52 @@ document.addEventListener('DOMContentLoaded', () => {
     const calRoomSelect = document.getElementById('calendar-room-select');
 
     if (calCategorySelect && calRoomSelect) {
-        const filterCalRooms = (deptId) => {
-            const options = calRoomSelect.querySelectorAll('option');
-            options.forEach(opt => {
+        // Store master list of all room options
+        const allCalRoomOptions = Array.from(calRoomSelect.querySelectorAll('option'));
+
+        const filterCalRooms = (deptId, autoSubmitIfChanged = false) => {
+            const currentVal = calRoomSelect.value;
+            calRoomSelect.innerHTML = '';
+            
+            let currentStillVisible = false;
+            let firstMatchingOpt = null;
+
+            allCalRoomOptions.forEach(opt => {
                 const optDept = opt.getAttribute('data-dept');
                 if (!deptId || optDept === deptId) {
-                    opt.style.display = '';
-                    opt.disabled = false;
-                } else {
-                    opt.style.display = 'none';
-                    opt.disabled = true;
+                    const clonedOpt = opt.cloneNode(true);
+                    clonedOpt.style.display = '';
+                    clonedOpt.disabled = false;
+                    calRoomSelect.appendChild(clonedOpt);
+                    
+                    if (!firstMatchingOpt) firstMatchingOpt = clonedOpt;
+                    if (clonedOpt.value === currentVal) currentStillVisible = true;
                 }
             });
+
+            if (!currentStillVisible && firstMatchingOpt) {
+                calRoomSelect.value = firstMatchingOpt.value;
+                if (autoSubmitIfChanged && calRoomSelect.form) {
+                    calRoomSelect.form.submit();
+                }
+            } else if (currentStillVisible) {
+                calRoomSelect.value = currentVal;
+            }
         };
 
         // Initial filter on load based on current selected category
         if (calCategorySelect.value) {
-            filterCalRooms(calCategorySelect.value);
+            filterCalRooms(calCategorySelect.value, false);
         }
 
         calCategorySelect.addEventListener('change', (e) => {
             const selectedDeptId = e.target.value;
-            filterCalRooms(selectedDeptId);
+            filterCalRooms(selectedDeptId, true);
             
             // Synchronize the default category form input value
             const defaultCatInput = document.getElementById('default-category-id');
             if (defaultCatInput) {
                 defaultCatInput.value = selectedDeptId;
-            }
-            
-            // If currently selected room is not in the newly selected category, select the first visible room and reload
-            const activeOpt = calRoomSelect.querySelector(`option[value="${calRoomSelect.value}"]`);
-            if (activeOpt && activeOpt.disabled) {
-                const firstVisibleOpt = calRoomSelect.querySelector('option:not([disabled])');
-                if (firstVisibleOpt) {
-                    calRoomSelect.value = firstVisibleOpt.value;
-                    calRoomSelect.form.submit();
-                }
             }
         });
     }
@@ -232,12 +241,18 @@ window.openEditRoomModal = function(id, name, deptId, notes, bookable) {
     openModal('edit-room-modal');
 };
 
-window.openEditPeriodModal = function(id, name, start, end, bookable) {
+window.openEditPeriodModal = function(id, name, start, end, bookable, color = '') {
     document.getElementById('edit-period-id').value = id;
     document.getElementById('edit-period-name').value = name;
     document.getElementById('edit-period-start').value = start;
     document.getElementById('edit-period-end').value = end;
     document.getElementById('edit-period-bookable').checked = parseInt(bookable) === 1;
+    if (document.getElementById('edit-period-color')) {
+        document.getElementById('edit-period-color').value = color || '';
+    }
+    if (document.getElementById('edit-period-color-picker')) {
+        document.getElementById('edit-period-color-picker').value = color || '#3b82f6';
+    }
     openModal('edit-period-modal');
 };
 
@@ -283,6 +298,57 @@ window.openEditWeekModal = function(id, name) {
     document.getElementById('edit-week-name').value = name;
     openModal('edit-week-modal');
 };
+
+window.openShareModal = function(roomId, dateStr) {
+    const baseUrl = window.location.origin + '/bookings/public';
+    const fullUrl = `${baseUrl}?room_id=${roomId || ''}&date=${dateStr || ''}`;
+    
+    const input = document.getElementById('share-link-input');
+    if (input) input.value = fullUrl;
+
+    const previewBtn = document.getElementById('share-preview-btn');
+    if (previewBtn) previewBtn.href = fullUrl;
+
+    const copyBtn = document.getElementById('copy-share-btn');
+    if (copyBtn) copyBtn.innerHTML = '<span>📋 Kopieren</span>';
+
+    openModal('share-modal');
+};
+
+window.copyShareLink = function() {
+    const input = document.getElementById('share-link-input');
+    if (!input) return;
+    input.select();
+    input.setSelectionRange(0, 99999);
+    
+    const textToCopy = input.value;
+
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(textToCopy).then(() => {
+            const copyBtn = document.getElementById('copy-share-btn');
+            if (copyBtn) {
+                copyBtn.innerHTML = '<span>✓ Kopiert!</span>';
+                setTimeout(() => { copyBtn.innerHTML = '<span>📋 Kopieren</span>'; }, 2500);
+            }
+        }).catch(() => fallbackCopy(input));
+    } else {
+        fallbackCopy(input);
+    }
+};
+
+function fallbackCopy(input) {
+    try {
+        input.select();
+        document.execCommand('copy');
+        const copyBtn = document.getElementById('copy-share-btn');
+        if (copyBtn) {
+            copyBtn.innerHTML = '<span>✓ Kopiert!</span>';
+            setTimeout(() => { copyBtn.innerHTML = '<span>📋 Kopieren</span>'; }, 2500);
+        }
+    } catch(err) {
+        console.error('Fallback copy failed:', err);
+    }
+}
 
 // Document-level click listener for edit booking trigger buttons
 document.addEventListener('click', (e) => {

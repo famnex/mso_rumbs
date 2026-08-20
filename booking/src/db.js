@@ -60,6 +60,11 @@ async function initializeDatabase() {
             try { await dbQuery.run("ALTER TABLE bookings ADD COLUMN date_end TEXT;"); } catch(e){}
         }
 
+        const periodsTableCheck = await dbQuery.get("SELECT name FROM sqlite_master WHERE type='table' AND name='periods';");
+        if (periodsTableCheck) {
+            try { await dbQuery.run("ALTER TABLE periods ADD COLUMN color TEXT;"); } catch(e){}
+        }
+
         // Check if users table exists
         const tableCheck = await dbQuery.get("SELECT name FROM sqlite_master WHERE type='table' AND name='users';");
         if (tableCheck) {
@@ -113,7 +118,8 @@ async function initializeDatabase() {
             time_end TEXT NOT NULL,
             name TEXT NOT NULL,
             days INTEGER NOT NULL,
-            bookable INTEGER NOT NULL DEFAULT 0
+            bookable INTEGER NOT NULL DEFAULT 0,
+            color TEXT
         );`);
 
         // 6. roomfields

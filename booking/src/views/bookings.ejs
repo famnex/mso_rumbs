@@ -6,11 +6,30 @@
     window.currentWeekDatesMap = <%- JSON.stringify(typeof weekDatesMap !== 'undefined' && weekDatesMap ? weekDatesMap : {}) %>;
 </script>
 
+<% const isPublicView = typeof isPublicReadOnly !== 'undefined' && isPublicReadOnly; %>
+<% const routePath = isPublicView ? '/bookings/public' : '/bookings'; %>
+
+<% if (isPublicView) { %>
+    <div style="margin-bottom: 20px; padding: 14px 20px; border-radius: 16px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); color: var(--text-main); font-size: 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <span style="font-size: 22px;">👁️</span>
+            <div>
+                <strong>Öffentlicher Belegungsplan (Nur-Lese-Ansicht):</strong> Sie betrachten den Plan für <strong><%= room.name %></strong>.
+            </div>
+        </div>
+        <% if (!currentUserId) { %>
+            <a href="/login" class="btn-primary" style="font-size: 13px; padding: 8px 16px; border-radius: 10px; text-decoration: none; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;">
+                🔑 Anmelden zum Buchen
+            </a>
+        <% } %>
+    </div>
+<% } %>
+
 <div class="calendar-header-bar card">
     <!-- Room Selector & Breadcrumb -->
     <div class="calendar-info">
         <div class="calendar-breadcrumb">
-            <a href="/">Dashboard</a> &raquo; <strong><%= room.name %></strong>
+            <a href="<%= routePath %>">Dashboard</a> &raquo; <strong><%= room.name %></strong>
         </div>
         <h2>
             <span class="room-icon-inline" style="display: inline-flex; align-items: center;">
@@ -42,7 +61,7 @@
             </div>
 
 
-            <form action="/bookings" method="GET" class="room-select-form" id="calendar-room-form" style="margin: 0;">
+            <form action="<%= routePath %>" method="GET" class="room-select-form" id="calendar-room-form" style="margin: 0;">
                 <label for="calendar-room-select" class="calendar-select-label" style="font-size: 13.5px; font-weight: 700; color: var(--text-muted); margin: 0;">Medium / Raum:</label>
                 <select name="room_id" id="calendar-room-select" onchange="this.form.submit()" style="padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); font-size: 13.5px; font-weight: 600; cursor: pointer; outline: none; transition: border-color 0.2s;">
                     <% allRooms.forEach(r => { %>
@@ -94,21 +113,30 @@
 <% } %>
 
 <!-- Week Navigation Bar -->
-<div class="week-navigation">
-    <a href="/bookings?room_id=<%= room.room_id %>&date=<%= prevWeek %>" class="btn-nav-week">
-        <span class="nav-text-desktop">&larr; Vorherige Woche</span>
-        <span class="nav-text-mobile">&larr; Zurück</span>
-    </a>
+<div class="week-navigation" style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+    <div style="display: flex; align-items: center; gap: 8px;">
+        <a href="<%= routePath %>?room_id=<%= room.room_id %>&date=<%= prevWeek %>" class="btn-nav-week">
+            <span class="nav-text-desktop">&larr; Vorherige Woche</span>
+            <span class="nav-text-mobile">&larr; Zurück</span>
+        </a>
+    </div>
+
     <div class="week-title-badge" id="week-datepicker-trigger" title="Wunschwoche auswählen...">
         <span class="nav-badge-desktop">📅 Woche vom <strong><%= mondayStr %></strong> <%= typeof weekName !== 'undefined' && weekName ? `(${weekName})` : '' %></span>
         <span class="nav-badge-mobile">📅 <strong><%= mondayStr %></strong></span>
         <!-- Hidden input covering the badge to trigger native datepicker -->
         <input type="date" id="week-datepicker-input" value="<%= selectedDate %>" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; border: none; padding: 0; z-index: 10; -webkit-appearance: none;">
     </div>
-    <a href="/bookings?room_id=<%= room.room_id %>&date=<%= nextWeek %>" class="btn-nav-week">
-        <span class="nav-text-desktop">Nächste Woche &rarr;</span>
-        <span class="nav-text-mobile">Weiter &rarr;</span>
-    </a>
+
+    <div style="display: flex; align-items: center; gap: 8px;">
+        <a href="<%= routePath %>?room_id=<%= room.room_id %>&date=<%= nextWeek %>" class="btn-nav-week">
+            <span class="nav-text-desktop">Nächste Woche &rarr;</span>
+            <span class="nav-text-mobile">Weiter &rarr;</span>
+        </a>
+        <button type="button" class="btn-secondary" onclick="openShareModal('<%= room.room_id %>', '<%= selectedDate %>')" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 700; border-radius: 10px; cursor: pointer; padding: 8px 14px; font-size: 13px;">
+            <span>🔗 Teilen</span>
+        </button>
+    </div>
 </div>
 
 <!-- The Weekly Schedule Grid -->
@@ -135,15 +163,20 @@
         </thead>
         <tbody>
             <% periods.forEach(period => { %>
-                <tr>
+                <tr <% if (period.color) { %>style="--period-accent-color: <%= period.color %>;"<% } %>>
                     <!-- Period Info Column -->
-                    <td class="time-col">
-                        <div class="period-name">
-                            <span class="period-name-desktop"><%= period.name %></span>
+                    <td class="time-col" <% if (period.color) { %>style="border-left: 5px solid <%= period.color %>; background: <%= period.color %>14;"<% } %>>
+                        <div class="period-name" <% if (period.color) { %>style="color: <%= period.color %>; font-weight: 800;"<% } %>>
+                            <span class="period-name-desktop">
+                                <% if (period.color) { %>
+                                    <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: <%= period.color %>; margin-right: 6px; vertical-align: middle;"></span>
+                                <% } %>
+                                <%= period.name %>
+                            </span>
                             <span class="period-name-mobile"><%= period.name.slice(0, 3) %></span>
                         </div>
                         <div class="period-time">
-                            <span class="period-time-desktop"><%= period.time_start.slice(0, 5) %> - <%= period.time_end.slice(0, 5) %></span>
+                            <span class="period-time-desktop" <% if (period.color) { %>style="color: <%= period.color %>; opacity: 0.95; font-weight: 600;"<% } %>><%= period.time_start.slice(0, 5) %> - <%= period.time_end.slice(0, 5) %></span>
                             <span class="period-time-mobile"><%= period.time_start.slice(0, 5) %></span>
                         </div>
                     </td>
@@ -308,15 +341,23 @@
                             </td>
                         <% } else { %>
                             <!-- Free Bookable Slot Cell -->
-                            <td class="slot slot-free clickable" 
-                                onclick="openBookingModal('<%= room.room_id %>', '<%= room.name %>', '<%= period.period_id %>', '<%= period.name %>', '<%= currentDate %>')">
-                                <div class="slot-content">
-                                    <span class="btn-slot-add">
-                                        <span class="slot-free-desktop">+ Reservieren</span>
-                                        <span class="slot-free-mobile">+</span>
-                                    </span>
-                                </div>
-                            </td>
+                            <% if (isPublicView) { %>
+                                <td class="slot slot-free" <% if (period.color) { %>style="background: <%= period.color %>06; border-top: 1px solid <%= period.color %>20; border-bottom: 1px solid <%= period.color %>20;"<% } %>>
+                                    <div class="slot-content">
+                                        <span style="color: var(--text-muted); font-size: 12px; font-weight: 600; opacity: 0.6;">Frei</span>
+                                    </div>
+                                </td>
+                            <% } else { %>
+                                <td class="slot slot-free clickable" <% if (period.color) { %>style="background: <%= period.color %>06; border-top: 1px solid <%= period.color %>20; border-bottom: 1px solid <%= period.color %>20;"<% } %>
+                                    onclick="openBookingModal('<%= room.room_id %>', '<%= room.name %>', '<%= period.period_id %>', '<%= period.name %>', '<%= currentDate %>')">
+                                    <div class="slot-content">
+                                        <span class="btn-slot-add">
+                                            <span class="slot-free-desktop">+ Reservieren</span>
+                                            <span class="slot-free-mobile">+</span>
+                                        </span>
+                                    </div>
+                                </td>
+                            <% } %>
                         <% } %>
                     <% } %>
                 </tr>
@@ -463,5 +504,6 @@
     </div>
 </div>
 
+<%- include('partials/share_modal') %>
 <%- include('partials/edit_booking_modal') %>
 <%- include('partials/footer') %>

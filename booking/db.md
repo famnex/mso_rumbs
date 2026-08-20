@@ -47,6 +47,7 @@ Definiert die Schulstunden bzw. Unterrichtszeiten.
 - `name` (VARCHAR(30), NOT NULL): Name der Stunde (z.B. "1. Stunde").
 - `days` (INT(2), unsigned, NOT NULL): Bits/Tage, an denen diese Stunde aktiv ist.
 - `bookable` (TINYINT(1), unsigned, NOT NULL, default '0'): Ob diese Stunde von regulären Nutzern gebucht werden darf.
+- `color` (TEXT, NULL): Optionale Hex-Sonderfarbe zur optischen Hervorhebung der Stunde im Belegungsplan.
 
 ### 6. `roomfields`
 Zusatzfelder für die Räume zur flexiblen Raumbeschreibung.
@@ -141,3 +142,7 @@ Um eine sauberere Zuordnung der Räume/Medien zu ermöglichen, wurde die klassis
 ### 2026-08-12: Zeitliche Begrenzung (date_start / date_end) für Stundenplan-Dauerbuchungen
 - **Datenbank-Tabelle `bookings`**: Spalten `date_start TEXT` (Gültig ab) und `date_end TEXT` (Gültig bis) hinzugefügt.
 - **Verwendungszweck**: Ermöglicht die zeitliche Begrenzung wiederkehrender Stundenplaneinträge auf bestimmte Zeiträume (z. B. 01.09.2026 bis 31.01.2027), ohne andere Zeiträume im selben Schuljahr zu blockieren.
+
+### 2026-08-20: Sonderfarbe für Unterrichtsstunden (periods.color)
+- **Datenbank-Tabelle `periods`**: Spalte `color TEXT` hinzugefügt.
+- **Verwendungszweck**: Ermöglicht Administratoren die Zuweisung einer individuellen Sonderfarbe für Unterrichtsstunden (z. B. Mittagsband, Pause, Betreuung), um diese im Belegungsplan optisch hervorzuheben.
