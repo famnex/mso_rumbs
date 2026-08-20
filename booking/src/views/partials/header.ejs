@@ -167,9 +167,11 @@
                         <span class="moon-icon">🌙</span>
                     </button>
                     
-                    <a href="/login" class="btn-sso-login" style="padding: 8px 16px; border-radius: 10px; font-size: 13px; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
-                        🔑 Anmelden
-                    </a>
+                    <% if (typeof isPublicReadOnly === 'undefined' || !isPublicReadOnly) { %>
+                        <a href="/login" class="btn-sso-login" style="padding: 8px 16px; border-radius: 10px; font-size: 13px; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+                            🔑 Anmelden
+                        </a>
+                    <% } %>
                 </nav>
             <% } %>
         </header>

@@ -10,18 +10,11 @@
 <% const routePath = isPublicView ? '/public' : '/bookings'; %>
 
 <% if (isPublicView) { %>
-    <div style="margin-bottom: 20px; padding: 14px 20px; border-radius: 16px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); color: var(--text-main); font-size: 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
-        <div style="display: flex; align-items: center; gap: 12px;">
-            <span style="font-size: 22px;">👁️</span>
-            <div>
-                <strong>Öffentlicher Belegungsplan (Nur-Lese-Ansicht):</strong> Sie betrachten den Plan für <strong><%= room.name %></strong>.
-            </div>
+    <div style="margin-bottom: 20px; padding: 14px 20px; border-radius: 16px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); color: var(--text-main); font-size: 14px; display: flex; align-items: center; gap: 12px;">
+        <span style="font-size: 22px;">👁️</span>
+        <div>
+            <strong>Öffentlicher Belegungsplan (Nur-Lese-Ansicht):</strong> Sie betrachten den Plan für <strong><%= room.name %></strong>.
         </div>
-        <% if (!currentUserId) { %>
-            <a href="/login" class="btn-primary" style="font-size: 13px; padding: 8px 16px; border-radius: 10px; text-decoration: none; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;">
-                🔑 Anmelden zum Buchen
-            </a>
-        <% } %>
     </div>
 <% } %>
 
@@ -29,7 +22,11 @@
     <!-- Room Selector & Breadcrumb -->
     <div class="calendar-info">
         <div class="calendar-breadcrumb">
-            <a href="<%= routePath %>">Dashboard</a> &raquo; <strong><%= room.name %></strong>
+            <% if (isPublicView) { %>
+                <span>Öffentlicher Belegungsplan</span> &raquo; <strong><%= room.name %></strong>
+            <% } else { %>
+                <a href="<%= routePath %>">Dashboard</a> &raquo; <strong><%= room.name %></strong>
+            <% } %>
         </div>
         <h2>
             <span class="room-icon-inline" style="display: inline-flex; align-items: center;">
@@ -45,35 +42,37 @@
         </h2>
     </div>
 
-    <!-- Cascading Room Selectors (Category -> Room) -->
-    <div class="calendar-controls">
-        <div class="calendar-selectors" style="display: flex; align-items: center; gap: 8px;">
-            <div class="calendar-select-wrapper" style="display: flex; align-items: center;">
-                <span class="calendar-select-label" style="font-size: 13.5px; font-weight: 700; color: var(--text-muted);">Kategorie:</span>
-                <select id="calendar-category-select" style="padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); font-size: 13.5px; font-weight: 600; cursor: pointer; outline: none; transition: border-color 0.2s;">
-                    <option value="">-- Alle --</option>
-                    <% if (typeof headerCategories !== 'undefined' && headerCategories && headerCategories.length) { %>
-                        <% headerCategories.forEach(cat => { %>
-                            <option value="<%= cat.department_id %>" <%= room.department_id == cat.department_id ? 'selected' : '' %>><%= cat.name %></option>
+    <% if (!isPublicView) { %>
+        <!-- Cascading Room Selectors (Category -> Room) -->
+        <div class="calendar-controls">
+            <div class="calendar-selectors" style="display: flex; align-items: center; gap: 8px;">
+                <div class="calendar-select-wrapper" style="display: flex; align-items: center;">
+                    <span class="calendar-select-label" style="font-size: 13.5px; font-weight: 700; color: var(--text-muted);">Kategorie:</span>
+                    <select id="calendar-category-select" style="padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); font-size: 13.5px; font-weight: 600; cursor: pointer; outline: none; transition: border-color 0.2s;">
+                        <option value="">-- Alle --</option>
+                        <% if (typeof headerCategories !== 'undefined' && headerCategories && headerCategories.length) { %>
+                            <% headerCategories.forEach(cat => { %>
+                                <option value="<%= cat.department_id %>" <%= room.department_id == cat.department_id ? 'selected' : '' %>><%= cat.name %></option>
+                            <% }) %>
+                        <% } %>
+                    </select>
+                </div>
+
+
+                <form action="<%= routePath %>" method="GET" class="room-select-form" id="calendar-room-form" style="margin: 0;">
+                    <label for="calendar-room-select" class="calendar-select-label" style="font-size: 13.5px; font-weight: 700; color: var(--text-muted); margin: 0;">Medium / Raum:</label>
+                    <select name="room_id" id="calendar-room-select" onchange="this.form.submit()" style="padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); font-size: 13.5px; font-weight: 600; cursor: pointer; outline: none; transition: border-color 0.2s;">
+                        <% allRooms.forEach(r => { %>
+                            <option value="<%= r.room_id %>" data-dept="<%= r.department_id || '' %>" <%= r.room_id == room.room_id ? 'selected' : '' %>>
+                                <%= r.name %>
+                            </option>
                         <% }) %>
-                    <% } %>
-                </select>
+                    </select>
+                    <input type="hidden" name="date" value="<%= selectedDate %>">
+                </form>
             </div>
-
-
-            <form action="<%= routePath %>" method="GET" class="room-select-form" id="calendar-room-form" style="margin: 0;">
-                <label for="calendar-room-select" class="calendar-select-label" style="font-size: 13.5px; font-weight: 700; color: var(--text-muted); margin: 0;">Medium / Raum:</label>
-                <select name="room_id" id="calendar-room-select" onchange="this.form.submit()" style="padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); font-size: 13.5px; font-weight: 600; cursor: pointer; outline: none; transition: border-color 0.2s;">
-                    <% allRooms.forEach(r => { %>
-                        <option value="<%= r.room_id %>" data-dept="<%= r.department_id || '' %>" <%= r.room_id == room.room_id ? 'selected' : '' %>>
-                            <%= r.name %>
-                        </option>
-                    <% }) %>
-                </select>
-                <input type="hidden" name="date" value="<%= selectedDate %>">
-            </form>
         </div>
-    </div>
+    <% } %>
 </div>
 
 <% if (typeof isOutsideAcademicYear !== 'undefined' && isOutsideAcademicYear) { %>
