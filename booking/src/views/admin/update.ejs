@@ -143,16 +143,25 @@
             stepGit.querySelector('.step-icon').textContent = '🔄';
 
             try {
-                // Post to trigger updating sequence dynamically relative to the current subpath location
-                const response = await fetch(window.location.pathname + '/run', {
+                const targetUrl = window.location.pathname.replace(/\/$/, '') + '/run';
+                const response = await fetch(targetUrl, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
+                    headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' }
                 });
                 
-                const result = await response.json();
+                const textContent = await response.text();
+                let result;
+                try {
+                    result = JSON.parse(textContent);
+                } catch (parseErr) {
+                    if (response.redirected || textContent.includes('<!DOCTYPE') || textContent.includes('<html')) {
+                        throw new Error('Sitzung abgelaufen oder Anmeldeseite aufgerufen. Bitte melden Sie sich erneut an.');
+                    }
+                    throw new Error(`Ungültige Serverantwort (HTTP ${response.status}): ${textContent.slice(0, 150)}`);
+                }
                 
                 // Show console logs in terminal
-                terminal.textContent = result.logs;
+                terminal.textContent = result.logs || 'Update ausgeführt.';
                 terminal.scrollTop = terminal.scrollHeight; // Scroll to bottom
 
                 if (result.success) {
@@ -174,12 +183,13 @@
 
                     // Page Reload Countdown after pm2 reboots (reloads current page to check status)
                     let countdown = 4;
-                    setInterval(() => {
+                    const reloadTimer = setInterval(() => {
                         countdown--;
                         if (countdown <= 0) {
+                            clearInterval(reloadTimer);
                             location.href = window.location.pathname;
                         } else {
-                            terminal.textContent = result.logs + `\n\n[Reload] Seite wird in ${countdown} Sekunden neu geladen...`;
+                            terminal.textContent = (result.logs || '') + `\n\n[Reload] Seite wird in ${countdown} Sekunden neu geladen...`;
                             terminal.scrollTop = terminal.scrollHeight;
                         }
                     }, 1000);
@@ -190,10 +200,11 @@
                     statusMsg.style.color = 'var(--danger)';
                     
                     // Identify failure point based on logs
-                    if (result.logs.includes('Schritt 1/4') && result.logs.includes('Exit Code')) {
+                    const logs = result.logs || '';
+                    if (logs.includes('Schritt 1/4') && logs.includes('Exit Code')) {
                         stepGit.className = 'step-item failed';
                         stepGit.querySelector('.step-icon').textContent = '❌';
-                    } else if (result.logs.includes('Schritt 2/4') && result.logs.includes('Exit Code')) {
+                    } else if (logs.includes('Schritt 2/4') && logs.includes('Exit Code')) {
                         stepGit.className = 'step-item success';
                         stepGit.querySelector('.step-icon').textContent = '✅';
                         stepNpm.className = 'step-item failed';
@@ -215,8 +226,8 @@
                 }
             } catch (err) {
                 console.error(err);
-                terminal.textContent += `\n[FEHLER] AJAX-Verbindungsfehler: ${err.message}`;
-                statusMsg.textContent = '❌ Netzwerk- / Verbindungsfehler.';
+                terminal.textContent += `\n[FEHLER] ${err.message}`;
+                statusMsg.textContent = '❌ Verbindung unterbrochen oder Sitzung abgelaufen.';
                 statusMsg.style.color = 'var(--danger)';
                 
                 btnUpdate.disabled = false;
