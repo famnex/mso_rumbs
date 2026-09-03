@@ -40,26 +40,22 @@ function openBookingModal(roomId, roomName, periodId, periodName, dateStr) {
     }
 
     // Admin range fields initialization
-    const isRangeCheckbox = document.getElementById('modal-is-range');
-    if (isRangeCheckbox) {
-        isRangeCheckbox.checked = false;
-        const rangeFields = document.getElementById('modal-range-fields');
-        if (rangeFields) rangeFields.classList.add('hidden');
+    if (typeof window.setBookingModalMode === 'function') {
+        window.setBookingModalMode('single');
+    }
+    const periodStartSelect = document.getElementById('modal-period-id-start');
+    if (periodStartSelect) periodStartSelect.value = periodId;
 
-        const periodStartSelect = document.getElementById('modal-period-id-start');
-        if (periodStartSelect) periodStartSelect.value = periodId;
+    const periodEndSelect = document.getElementById('modal-period-id-end');
+    if (periodEndSelect) periodEndSelect.value = periodId;
 
-        const periodEndSelect = document.getElementById('modal-period-id-end');
-        if (periodEndSelect) periodEndSelect.value = periodId;
+    const dateRangeStart = document.getElementById('modal-date-range-start');
+    if (dateRangeStart) dateRangeStart.value = dateStr;
 
-        const dateRangeStart = document.getElementById('modal-date-range-start');
-        if (dateRangeStart) dateRangeStart.value = dateStr;
-
-        const dateRangeEnd = document.getElementById('modal-date-range-end');
-        if (dateRangeEnd) {
-            dateRangeEnd.value = dateStr;
-            dateRangeEnd.min = dateStr;
-        }
+    const dateRangeEnd = document.getElementById('modal-date-range-end');
+    if (dateRangeEnd) {
+        dateRangeEnd.value = dateStr;
+        dateRangeEnd.min = dateStr;
     }
 
     // Reveal modal with a smooth micro-animation scaling
@@ -141,13 +137,58 @@ function toggleBookingTypeFields(type) {
     checkModalCollisions();
 }
 
-window.toggleAdminRangeFields = function(checked) {
-    const rangeFields = document.getElementById('modal-range-fields');
-    if (rangeFields) {
-        if (checked) {
-            rangeFields.classList.remove('hidden');
-        } else {
-            rangeFields.classList.add('hidden');
+window.setBookingModalMode = function(mode) {
+    const isRangeInput = document.getElementById('modal-is-range');
+    const btnSingle = document.getElementById('btn-mode-single');
+    const btnRange = document.getElementById('btn-mode-range');
+    const secSingle = document.getElementById('modal-section-single');
+    const secRange = document.getElementById('modal-section-range');
+
+    if (mode === 'range') {
+        if (isRangeInput) isRangeInput.value = '1';
+        if (btnSingle) {
+            btnSingle.classList.remove('active');
+            btnSingle.style.background = 'transparent';
+            btnSingle.style.color = 'var(--text-muted)';
+            btnSingle.style.boxShadow = 'none';
+        }
+        if (btnRange) {
+            btnRange.classList.add('active');
+            btnRange.style.background = 'var(--bg-card, #ffffff)';
+            btnRange.style.color = 'var(--primary, #2563eb)';
+            btnRange.style.boxShadow = '0 2px 6px rgba(0,0,0,0.08)';
+        }
+        if (secSingle) secSingle.classList.add('hidden');
+        if (secRange) secRange.classList.remove('hidden');
+    } else {
+        if (isRangeInput) isRangeInput.value = '0';
+        if (btnSingle) {
+            btnSingle.classList.add('active');
+            btnSingle.style.background = 'var(--bg-card, #ffffff)';
+            btnSingle.style.color = 'var(--primary, #2563eb)';
+            btnSingle.style.boxShadow = '0 2px 6px rgba(0,0,0,0.08)';
+        }
+        if (btnRange) {
+            btnRange.classList.remove('active');
+            btnRange.style.background = 'transparent';
+            btnRange.style.color = 'var(--text-muted)';
+            btnRange.style.boxShadow = 'none';
+        }
+        if (secSingle) secSingle.classList.remove('hidden');
+        if (secRange) secRange.classList.add('hidden');
+    }
+    checkModalCollisions();
+};
+
+window.onRangeStartDateChange = function(val) {
+    if (!val) return;
+    const dateInput = document.getElementById('modal-date');
+    if (dateInput) dateInput.value = val;
+    const endDateInput = document.getElementById('modal-date-range-end');
+    if (endDateInput) {
+        endDateInput.min = val;
+        if (endDateInput.value < val) {
+            endDateInput.value = val;
         }
     }
     checkModalCollisions();

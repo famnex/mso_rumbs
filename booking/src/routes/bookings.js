@@ -281,26 +281,26 @@ router.get(['/bookings/daily', '/daily'], requireLogin, async (req, res) => {
         // Fetch all categories for quick filtering
         const allCategories = await dbQuery.all("SELECT * FROM departments ORDER BY name ASC;");
 
-        // Fetch all single-date bookings for this date
+        // Fetch all single-date bookings for this date (only for existing rooms)
         const singleBookings = await dbQuery.all(`
             SELECT b.*, r.name as room_name, r.icon as room_icon, r.department_id, d.name as department_name,
                    u.displayname, u.username, u.firstname, u.lastname
             FROM bookings b
-            LEFT JOIN rooms r ON b.room_id = r.room_id
+            INNER JOIN rooms r ON b.room_id = r.room_id
             LEFT JOIN departments d ON r.department_id = d.department_id
             LEFT JOIN users u ON b.user_id = u.user_id
             WHERE b.date = ? AND b.cancelled = 0
             ORDER BY r.name ASC
         `, [selectedDate]);
 
-        // Fetch all recurring timetable blockings for this dayNum
+        // Fetch all recurring timetable blockings for this dayNum (only for existing rooms)
         let timetableBookings = [];
         if (dayNum >= 1 && dayNum <= 5) {
             timetableBookings = await dbQuery.all(`
                 SELECT b.*, r.name as room_name, r.icon as room_icon, r.department_id, d.name as department_name,
                        u.displayname, u.username, u.firstname, u.lastname, w.name as week_name
                 FROM bookings b
-                LEFT JOIN rooms r ON b.room_id = r.room_id
+                INNER JOIN rooms r ON b.room_id = r.room_id
                 LEFT JOIN departments d ON r.department_id = d.department_id
                 LEFT JOIN users u ON b.user_id = u.user_id
                 LEFT JOIN weeks w ON b.week_id = w.week_id
@@ -533,14 +533,10 @@ router.post('/bookings/add', requireLogin, async (req, res) => {
             return res.redirect(`/bookings?room_id=${room_id}&date=${date}`);
         } else {
             // Check if Admin requested a range booking (multiple periods or multiple days)
-            const isRangeBooking = req.session.authlevel === 1 && (
-                req.body.is_range === '1' ||
-                (req.body.date_end_booking && req.body.date_end_booking !== date) ||
-                (req.body.period_id_end && req.body.period_id_end !== period_id)
-            );
+            const isRangeBooking = req.session.authlevel === 1 && req.body.is_range === '1';
 
             if (isRangeBooking) {
-                const startDate = date;
+                const startDate = (req.body.date_start_booking && req.body.date_start_booking.trim() !== '') ? req.body.date_start_booking.trim() : date;
                 let endDate = (req.body.date_end_booking && req.body.date_end_booking.trim() !== '') ? req.body.date_end_booking.trim() : startDate;
                 if (endDate < startDate) endDate = startDate;
 

@@ -1,0 +1,156 @@
+<%- include('../partials/header') %>
+
+<div class="admin-overview-container">
+    <div class="calendar-header-bar card" style="margin-bottom: 24px;">
+        <div class="calendar-info">
+            <div class="calendar-breadcrumb">
+                <a href="/">Dashboard</a> &raquo; <a href="/admin">Systemsteuerung</a> &raquo; <strong>Datenbank-Bereinigung</strong>
+            </div>
+            <h2>🧹 Datenbank-Bereinigung &amp; Wartung</h2>
+            <p style="color: var(--text-muted); font-size: 13.5px; margin-top: 4px;">
+                Identifizieren und Bereinigen von verwaisten Belegungsdaten gelöschter Räume/Medien, Benutzer oder Unterrichtsstunden.
+            </p>
+        </div>
+        <div class="calendar-controls">
+            <a href="/admin" class="btn-secondary" style="font-size: 13px; padding: 8px 14px; border-radius: 10px; text-decoration: none; font-weight: 700;">
+                &larr; Zurück zur Übersicht
+            </a>
+        </div>
+    </div>
+
+    <!-- Status Overview Cards -->
+    <div class="admin-overview-grid" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 24px;">
+        <div class="stat-card card" style="border-left: 5px solid <%= totalOrphans > 0 ? '#ef4444' : '#10b981' %>;">
+            <span class="stat-icon"><%= totalOrphans > 0 ? '⚠️' : '✓' %></span>
+            <div class="stat-details">
+                <h4>Verwaiste Buchungen</h4>
+                <div class="stat-number" style="color: <%= totalOrphans > 0 ? '#ef4444' : '#10b981' %>;">
+                    <%= totalOrphans %>
+                </div>
+            </div>
+        </div>
+
+        <div class="stat-card card" style="border-left: 5px solid #3b82f6;">
+            <span class="stat-icon">🚪</span>
+            <div class="stat-details">
+                <h4>Gelöschte Medien/Räume</h4>
+                <div class="stat-number" style="color: #3b82f6;"><%= orphanRooms.length %></div>
+            </div>
+        </div>
+
+        <div class="stat-card card" style="border-left: 5px solid #8b5cf6;">
+            <span class="stat-icon">👤</span>
+            <div class="stat-details">
+                <h4>Verwaiste Benutzer-Einträge</h4>
+                <div class="stat-number" style="color: #8b5cf6;"><%= totalOrphanUserBookings %></div>
+            </div>
+        </div>
+
+        <div class="stat-card card" style="border-left: 5px solid #f59e0b;">
+            <span class="stat-icon">🗑️</span>
+            <div class="stat-details">
+                <h4>Alte Stornos (>90 Tage)</h4>
+                <div class="stat-number" style="color: #f59e0b;"><%= staleCancelledCount %></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions Section -->
+    <div class="card" style="padding: 20px; border-radius: 14px; margin-bottom: 24px; background: var(--bg-card, #ffffff); border: 1px solid var(--border-color);">
+        <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 16px; display: flex; align-items: center; gap: 8px;">
+            <span>⚡ Bereinigungs-Aktionen</span>
+        </h3>
+        <p style="color: var(--text-muted); font-size: 13.5px; margin-bottom: 18px;">
+            Wählen Sie die gewünschte Aktion. Gelöschte Daten können nicht wiederhergestellt werden.
+        </p>
+
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <% if (totalOrphans > 0) { %>
+                <form action="/admin/cleanup" method="POST" onsubmit="return confirm('Möchten Sie wirklich alle <%= totalOrphans %> verwaisten Buchungen unwiderruflich aus der Datenbank entfernen?');">
+                    <input type="hidden" name="action" value="clean_orphans">
+                    <button type="submit" class="btn-primary" style="background: #ef4444; border-color: #dc2626; padding: 10px 18px; border-radius: 10px; font-weight: 700; cursor: pointer;">
+                        <span>🧹 Alle <%= totalOrphans %> verwaisten Buchungen löschen</span>
+                    </button>
+                </form>
+            <% } else { %>
+                <button type="button" disabled class="btn-secondary" style="opacity: 0.6; cursor: not-allowed; padding: 10px 18px; border-radius: 10px; font-weight: 700;">
+                    ✓ Keine verwaisten Buchungen vorhanden
+                </button>
+            <% } %>
+
+            <% if (staleCancelledCount > 0) { %>
+                <form action="/admin/cleanup" method="POST" onsubmit="return confirm('Möchten Sie alle <%= staleCancelledCount %> alten stornierten Buchungen (>90 Tage) endgültig löschen?');">
+                    <input type="hidden" name="action" value="clean_cancelled">
+                    <button type="submit" class="btn-secondary" style="padding: 10px 18px; border-radius: 10px; font-weight: 700; cursor: pointer;">
+                        <span>🗑️ <%= staleCancelledCount %> alte Stornos bereinigen</span>
+                    </button>
+                </form>
+            <% } %>
+        </div>
+    </div>
+
+    <!-- Breakdown Table of Orphaned Rooms -->
+    <div class="card" style="padding: 0; overflow: hidden; border-radius: 16px; border: 1px solid var(--border-color); margin-bottom: 40px;">
+        <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-color); background: var(--bg-secondary, rgba(0,0,0,0.02)); display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0; font-size: 15px; font-weight: 800;">
+                📋 Detailliste der betroffenen gelöschten Medien / Räume
+            </h3>
+            <span style="font-size: 12.5px; font-weight: 700; color: var(--text-muted);">
+                <%= orphanRooms.length %> gelöschte IDs gefunden
+            </span>
+        </div>
+
+        <% if (orphanRooms.length > 0) { %>
+            <div class="table-responsive" style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13.5px;">
+                    <thead>
+                        <tr style="background: var(--bg-secondary, rgba(0,0,0,0.03)); border-bottom: 2px solid var(--border-color); color: var(--text-muted); font-size: 12px; text-transform: uppercase;">
+                            <th style="padding: 12px 18px;">Gelöschte Raum-ID</th>
+                            <th style="padding: 12px 18px;">Einzelbuchungen</th>
+                            <th style="padding: 12px 18px;">Stundenplaneinträge</th>
+                            <th style="padding: 12px 18px;">Gesamtbelegungen</th>
+                            <th style="padding: 12px 18px;">Zeitraum (von - bis)</th>
+                            <th style="padding: 12px 18px; text-align: right;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% orphanRooms.forEach(item => { %>
+                            <tr style="border-bottom: 1px solid var(--border-color);">
+                                <td style="padding: 12px 18px; font-weight: 800;">
+                                    ID <%= item.room_id %>
+                                    <% if (item.room_id === 164) { %>
+                                        <span style="font-size: 11px; background: rgba(239, 68, 68, 0.15); color: #ef4444; padding: 2px 6px; border-radius: 4px; margin-left: 6px;">
+                                            Gemeldetes Objekt
+                                        </span>
+                                    <% } %>
+                                </td>
+                                <td style="padding: 12px 18px;"><%= item.single_cnt || 0 %></td>
+                                <td style="padding: 12px 18px;"><%= item.timetable_cnt || 0 %></td>
+                                <td style="padding: 12px 18px; font-weight: 700; color: #ef4444;">
+                                    <%= item.cnt %> Belegungen
+                                </td>
+                                <td style="padding: 12px 18px; color: var(--text-muted);">
+                                    <%= (item.min_date ? item.min_date.split('-').reverse().join('.') : '—') %> bis 
+                                    <%= (item.max_date ? item.max_date.split('-').reverse().join('.') : '—') %>
+                                </td>
+                                <td style="padding: 12px 18px; text-align: right;">
+                                    <span style="font-size: 11.5px; background: rgba(239, 68, 68, 0.1); color: #ef4444; padding: 3px 8px; border-radius: 6px; font-weight: 700;">
+                                        Verwaist
+                                    </span>
+                                </td>
+                            </tr>
+                        <% }) %>
+                    </tbody>
+                </table>
+            </div>
+        <% } else { %>
+            <div style="padding: 30px; text-align: center; color: var(--text-muted);">
+                <div style="font-size: 32px; margin-bottom: 8px;">🎉</div>
+                <strong>Keine verwaisten Medien oder Räume gefunden!</strong>
+                <p style="margin-top: 4px; font-size: 13px;">Alle Belegungen sind gültigen Räumen zugewiesen.</p>
+            </div>
+        <% } %>
+    </div>
+</div>
+
+<%- include('../partials/footer') %>

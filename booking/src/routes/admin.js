@@ -114,8 +114,8 @@ router.post('/admin/rooms/delete', requireAdmin, async (req, res) => {
 
     try {
         await dbQuery.run("DELETE FROM rooms WHERE room_id = ?", [room_id]);
-        // Also cancel future bookings in this room
-        await dbQuery.run("UPDATE bookings SET cancelled = 1 WHERE room_id = ?", [room_id]);
+        // Also delete associated bookings for this room so no orphans remain
+        await dbQuery.run("DELETE FROM bookings WHERE room_id = ?", [room_id]);
 
         req.session.success = 'Medium / Raum erfolgreich gelöscht!';
         res.redirect('/admin/rooms');
@@ -1168,6 +1168,112 @@ router.post('/admin/update/run', requireAdmin, async (req, res) => {
             success: false,
             logs: logs.join('\n')
         });
+    }
+});
+
+// GET /admin/cleanup (Database Maintenance & Orphan Cleanup)
+router.get('/admin/cleanup', requireAdmin, async (req, res) => {
+    try {
+        const orphanRooms = await dbQuery.all(`
+            SELECT b.room_id, COUNT(*) as cnt, MIN(b.date) as min_date, MAX(b.date) as max_date,
+                   SUM(CASE WHEN b.date IS NULL AND b.day_num IS NOT NULL THEN 1 ELSE 0 END) as timetable_cnt,
+                   SUM(CASE WHEN b.date IS NOT NULL THEN 1 ELSE 0 END) as single_cnt
+            FROM bookings b 
+            WHERE b.room_id NOT IN (SELECT room_id FROM rooms) OR b.room_id = 0 OR b.room_id IS NULL
+            GROUP BY b.room_id
+            ORDER BY cnt DESC;
+        `);
+
+        const totalOrphanRoomBookings = orphanRooms.reduce((sum, r) => sum + r.cnt, 0);
+
+        const orphanUsers = await dbQuery.all(`
+            SELECT b.user_id, COUNT(*) as cnt
+            FROM bookings b 
+            WHERE b.user_id NOT IN (SELECT user_id FROM users)
+            GROUP BY b.user_id;
+        `);
+        const totalOrphanUserBookings = orphanUsers.reduce((sum, u) => sum + u.cnt, 0);
+
+        const orphanPeriods = await dbQuery.all(`
+            SELECT b.period_id, COUNT(*) as cnt
+            FROM bookings b 
+            WHERE b.period_id NOT IN (SELECT period_id FROM periods)
+            GROUP BY b.period_id;
+        `);
+        const totalOrphanPeriodBookings = orphanPeriods.reduce((sum, p) => sum + p.cnt, 0);
+
+        // Cancelled bookings older than 90 days
+        const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const staleCancelled = await dbQuery.get(`
+            SELECT COUNT(*) as cnt FROM bookings WHERE cancelled = 1 AND date IS NOT NULL AND date < ?;
+        `, [ninetyDaysAgo]);
+        const staleCancelledCount = staleCancelled ? staleCancelled.cnt : 0;
+
+        const schoolNameSetting = await dbQuery.get("SELECT value FROM settings WHERE name='name' LIMIT 1;");
+        const schoolName = schoolNameSetting ? schoolNameSetting.value : 'Raumbelegung MSO';
+
+        res.render('admin/cleanup', {
+            title: 'Datenbank-Bereinigung & Wartung',
+            schoolName,
+            displayName: req.session.displayName,
+            authlevel: req.session.authlevel,
+            orphanRooms,
+            totalOrphanRoomBookings,
+            totalOrphanUserBookings,
+            totalOrphanPeriodBookings,
+            totalOrphans: totalOrphanRoomBookings + totalOrphanUserBookings + totalOrphanPeriodBookings,
+            staleCancelledCount,
+            error: req.session.error || null,
+            success: req.session.success || null
+        });
+
+        req.session.error = null;
+        req.session.success = null;
+
+    } catch (e) {
+        console.error('Admin cleanup load error:', e);
+        res.status(500).send('Interner Serverfehler beim Laden der Bereinigungsseite.');
+    }
+});
+
+// POST /admin/cleanup (Execute cleanup)
+router.post('/admin/cleanup', requireAdmin, async (req, res) => {
+    const { action } = req.body;
+
+    try {
+        let deletedCount = 0;
+
+        if (action === 'clean_orphans' || action === 'clean_all') {
+            const r1 = await dbQuery.run(`
+                DELETE FROM bookings 
+                WHERE room_id NOT IN (SELECT room_id FROM rooms) OR room_id = 0 OR room_id IS NULL;
+            `);
+            const r2 = await dbQuery.run(`
+                DELETE FROM bookings 
+                WHERE user_id NOT IN (SELECT user_id FROM users);
+            `);
+            const r3 = await dbQuery.run(`
+                DELETE FROM bookings 
+                WHERE period_id NOT IN (SELECT period_id FROM periods);
+            `);
+            deletedCount += (r1.changes || 0) + (r2.changes || 0) + (r3.changes || 0);
+        }
+
+        if (action === 'clean_cancelled' || action === 'clean_all') {
+            const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+            const r4 = await dbQuery.run(`
+                DELETE FROM bookings WHERE cancelled = 1 AND date IS NOT NULL AND date < ?;
+            `, [ninetyDaysAgo]);
+            deletedCount += (r4.changes || 0);
+        }
+
+        req.session.success = `Erfolgreich ${deletedCount} verwaiste / veraltete Datensätze aus der Datenbank gelöscht!`;
+        res.redirect('/admin/cleanup');
+
+    } catch (e) {
+        console.error('Admin cleanup execution error:', e);
+        req.session.error = 'Fehler bei der Datenbank-Bereinigung: ' + (e.message || e);
+        res.redirect('/admin/cleanup');
     }
 });
 
