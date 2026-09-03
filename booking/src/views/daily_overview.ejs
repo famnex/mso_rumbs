@@ -144,25 +144,25 @@
 <!-- Chronological Table View (Tabellarische Tagesübersicht) -->
 <div class="card" style="padding: 0; overflow: hidden; border-radius: 16px; border: 1px solid var(--border-color); margin-bottom: 40px; box-shadow: var(--card-shadow, 0 4px 12px rgba(0,0,0,0.03));">
     <div style="overflow-x: auto; width: 100%;">
-        <table class="zebra-table" style="width: 100%; table-layout: fixed; border-collapse: collapse; margin-top: 0; border: none; border-radius: 0; font-size: 13.5px;">
+        <table class="daily-overview-grid" style="width: 100%; table-layout: fixed; border-collapse: collapse; margin: 0; border: none; border-radius: 0; font-size: 13.5px; display: table !important;">
             <colgroup>
-                <col style="width: 150px;"> <!-- Stunde / Zeit -->
-                <col style="width: 220px;"> <!-- Medium / Raum -->
+                <col style="width: 140px;"> <!-- Stunde / Zeit -->
+                <col style="width: 200px;"> <!-- Medium / Raum -->
                 <col style="width: 140px;"> <!-- Kategorie -->
-                <col style="width: 180px;"> <!-- Gebucht von -->
+                <col style="width: 160px;"> <!-- Gebucht von -->
                 <col style="width: auto;">  <!-- Verwendungszweck / Klasse -->
-                <col style="width: 130px;"> <!-- Typ -->
+                <col style="width: 120px;"> <!-- Typ -->
                 <col style="width: 90px;">  <!-- Aktionen -->
             </colgroup>
             <thead>
-                <tr style="background: var(--bg-secondary, rgba(0,0,0,0.03)); border-bottom: 2px solid var(--border-color); color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">
-                    <th style="padding: 12px 16px; text-align: left;">Stunde / Zeit</th>
-                    <th style="padding: 12px 16px; text-align: left;">Medium / Raum</th>
-                    <th style="padding: 12px 16px; text-align: left;">Kategorie</th>
-                    <th style="padding: 12px 16px; text-align: left;">Gebucht von</th>
-                    <th style="padding: 12px 16px; text-align: left;">Verwendungszweck / Klasse</th>
-                    <th style="padding: 12px 16px; text-align: left;">Typ</th>
-                    <th style="padding: 12px 16px; text-align: right;">Aktionen</th>
+                <tr style="background: var(--bg-secondary, rgba(0,0,0,0.03)); border-bottom: 2px solid var(--border-color); color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; display: table-row !important;">
+                    <th style="padding: 12px 16px; text-align: left; display: table-cell !important;">Stunde / Zeit</th>
+                    <th style="padding: 12px 16px; text-align: left; display: table-cell !important;">Medium / Raum</th>
+                    <th style="padding: 12px 16px; text-align: left; display: table-cell !important;">Kategorie</th>
+                    <th style="padding: 12px 16px; text-align: left; display: table-cell !important;">Gebucht von</th>
+                    <th style="padding: 12px 16px; text-align: left; display: table-cell !important;">Verwendungszweck / Klasse</th>
+                    <th style="padding: 12px 16px; text-align: left; display: table-cell !important;">Typ</th>
+                    <th style="padding: 12px 16px; text-align: right; display: table-cell !important;">Aktionen</th>
                 </tr>
             </thead>
             <tbody>
@@ -171,8 +171,8 @@
                     <% const periodBookings = bookingsByPeriod[period.period_id] || []; %>
                     <% periodBookings.forEach(b => { %>
                         <% totalRenderedBookings++; %>
-                        <tr class="booking-row" data-period-id="<%= period.period_id %>" data-dept-id="<%= b.department_id || '0' %>" style="border-bottom: 1px solid var(--border-color); transition: background 0.15s;">
-                            <td style="padding: 12px 16px; white-space: nowrap;">
+                        <tr class="daily-booking-row" data-period-id="<%= period.period_id %>" data-dept-id="<%= b.department_id || '0' %>" style="border-bottom: 1px solid var(--border-color); transition: background 0.15s; display: table-row !important;">
+                            <td style="padding: 12px 16px; white-space: nowrap; display: table-cell !important; vertical-align: middle;">
                                 <div style="display: flex; align-items: center; gap: 6px;">
                                     <% if (period.color) { %>
                                         <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: <%= period.color %>; box-shadow: 0 0 5px <%= period.color %>;"></span>
@@ -183,24 +183,24 @@
                                     <%= period.time_start.slice(0, 5) %> – <%= period.time_end.slice(0, 5) %> Uhr
                                 </div>
                             </td>
-                            <td style="padding: 12px 16px; font-weight: 700; color: var(--text-main);">
+                            <td style="padding: 12px 16px; font-weight: 700; color: var(--text-main); display: table-cell !important; vertical-align: middle;">
                                 <div style="display: flex; align-items: center; gap: 6px;">
                                     <span style="font-size: 16px;"><% if (b.room_icon === 'computer') { %>💻<% } else if (b.room_icon === 'science') { %>🧪<% } else { %>🏫<% } %></span>
                                     <span><%= b.room_name %></span>
                                 </div>
                             </td>
-                            <td style="padding: 12px 16px;">
+                            <td style="padding: 12px 16px; display: table-cell !important; vertical-align: middle;">
                                 <span style="display: inline-block; font-size: 11.5px; padding: 2px 8px; border-radius: 6px; background: var(--bg-secondary, rgba(0,0,0,0.05)); color: var(--text-muted); font-weight: 600;">
                                     <%= b.department_name || 'Allgemein' %>
                                 </span>
                             </td>
-                            <td style="padding: 12px 16px; font-weight: 600; color: var(--text-main);">
+                            <td style="padding: 12px 16px; font-weight: 600; color: var(--text-main); display: table-cell !important; vertical-align: middle;">
                                 👤 <%= b.displayname || (b.firstname && b.lastname ? `${b.firstname} ${b.lastname}` : b.username) || 'Unbekannt' %>
                             </td>
-                            <td style="padding: 12px 16px; color: var(--text-main); word-break: break-word;">
+                            <td style="padding: 12px 16px; color: var(--text-main); word-break: break-word; display: table-cell !important; vertical-align: middle;">
                                 <%= b.notes ? b.notes : '—' %>
                             </td>
-                            <td style="padding: 12px 16px; white-space: nowrap;">
+                            <td style="padding: 12px 16px; white-space: nowrap; display: table-cell !important; vertical-align: middle;">
                                 <% if (b.is_timetable) { %>
                                     <span style="font-size: 11.5px; background: rgba(107, 114, 128, 0.15); color: var(--text-muted); padding: 2px 7px; border-radius: 5px; font-weight: 700;">
                                         🔄 Stundenplan
@@ -216,7 +216,7 @@
                                     </span>
                                 <% } %>
                             </td>
-                            <td style="padding: 12px 16px; text-align: right; white-space: nowrap;">
+                            <td style="padding: 12px 16px; text-align: right; white-space: nowrap; display: table-cell !important; vertical-align: middle;">
                                 <div style="display: inline-flex; align-items: center; gap: 6px; justify-content: flex-end;">
                                     <a href="/bookings?room_id=<%= b.room_id %>&date=<%= selectedDate %>" title="Im Wochenplan ansehen" style="display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px; background: rgba(59, 130, 246, 0.1); color: #2563eb; text-decoration: none; font-size: 13px;">
                                         👁️
@@ -238,8 +238,8 @@
                 <% }) %>
 
                 <!-- Row shown when no bookings exist at all or all are filtered out -->
-                <tr id="daily-table-empty-row" style="<%= totalRenderedBookings > 0 ? 'display: none;' : '' %>">
-                    <td colspan="7" style="text-align: center; padding: 40px 20px; color: var(--text-muted);">
+                <tr id="daily-table-empty-row" style="<%= totalRenderedBookings > 0 ? 'display: none;' : 'display: table-row !important;' %>">
+                    <td colspan="7" style="text-align: center; padding: 40px 20px; color: var(--text-muted); display: table-cell !important;">
                         <div style="font-size: 32px; margin-bottom: 8px;">✨</div>
                         <strong style="font-size: 15px; color: var(--text-main);">Keine Raum- oder Medienbelegungen</strong>
                         <p style="margin: 6px 0 0; font-size: 13px;">
@@ -295,7 +295,7 @@
         const periodCounts = {};
 
         // Filter booking rows
-        const bookingRows = document.querySelectorAll('tr.booking-row');
+        const bookingRows = document.querySelectorAll('tr.daily-booking-row');
         bookingRows.forEach(row => {
             const rowDeptId = row.dataset.deptId;
             const rowPeriodId = row.dataset.periodId;
@@ -304,7 +304,7 @@
             if (hiddenIds.includes(rowDeptId)) {
                 row.style.display = 'none';
             } else {
-                row.style.display = '';
+                row.style.display = 'table-row';
                 grandTotalVisible++;
                 periodCounts[rowPeriodId]++;
             }
