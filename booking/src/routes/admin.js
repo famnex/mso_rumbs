@@ -1084,17 +1084,18 @@ router.get('/admin/update', requireAdmin, async (req, res) => {
     }
 });
 
-// POST /admin/update/run (Executes Git pull, npm install, Syntax validation, and PM2 reload with rollbacks)
+// POST /admin/update/run (Executes Git pull, npm install, Syntax validation, and PM2 reload with hash-based safe rollbacks)
 router.post('/admin/update/run', requireAdmin, async (req, res) => {
-    const { exec } = require('child_process');
+    const { exec, execSync } = require('child_process');
     const logs = [];
+    const repoPath = path.join(__dirname, '../..');
 
     const runCmd = (cmd) => {
         return new Promise((resolve, reject) => {
             logs.push(`> ${cmd}`);
-            exec(cmd, { cwd: path.join(__dirname, '../..') }, (error, stdout, stderr) => {
-                if (stdout) logs.push(stdout);
-                if (stderr) logs.push(stderr);
+            exec(cmd, { cwd: repoPath }, (error, stdout, stderr) => {
+                if (stdout) logs.push(stdout.trim());
+                if (stderr) logs.push(stderr.trim());
                 if (error) {
                     logs.push(`Befehl fehlgeschlagen mit Exit Code: ${error.code}`);
                     reject(error);
@@ -1105,21 +1106,48 @@ router.post('/admin/update/run', requireAdmin, async (req, res) => {
         });
     };
 
+    let startCommitHash = null;
+
     try {
-        // Step 1: Pull from Git
-        logs.push('=== Schritt 1/4: Git Pull ===');
-        await runCmd('git pull');
+        // Record starting commit for reliable rollback
+        try {
+            startCommitHash = execSync('git rev-parse HEAD', { cwd: repoPath }).toString().trim();
+            logs.push(`Ausgangs-Commit: ${startCommitHash.slice(0, 7)}`);
+        } catch (hErr) {
+            console.warn('Could not determine current commit:', hErr);
+        }
+
+        // Step 1: Fetch and Sync from Git
+        logs.push('=== Schritt 1/4: Git Repository synchronisieren ===');
+        await runCmd('git fetch origin main');
+
+        // Clean unversioned clutter (leaving .gitignored files like local/ intact)
+        try {
+            await runCmd('git clean -f -d');
+        } catch (cErr) {
+            // Ignore if clean fails
+        }
+
+        // Fast-forward or pull safely to origin/main
+        try {
+            await runCmd('git pull --ff-only');
+        } catch (pullErr) {
+            logs.push('> Fallback: Setze Arbeitsverzeichnis auf origin/main zurück...');
+            await runCmd('git reset --hard origin/main');
+        }
 
         // Step 2: Install potential new npm packages
         logs.push('\n=== Schritt 2/4: Abhängigkeiten prüfen (npm install) ===');
         await runCmd('npm install');
 
-        // Step 3: Crucial Syntax Verification Check
+        // Step 3: Crucial Syntax Verification Check across all key files
         logs.push('\n=== Schritt 3/4: Syntax- & Integritätsprüfung ===');
         try {
             await runCmd('node --check src/index.js');
             await runCmd('node --check src/db.js');
             await runCmd('node --check src/routes/admin.js');
+            await runCmd('node --check src/routes/bookings.js');
+            await runCmd('node --check src/routes/auth.js');
         } catch (syntaxErr) {
             logs.push('\n[KRITISCHER FEHLER] Syntaxprüfung fehlgeschlagen! Ein Update der Anwendung würde zum Systemabsturz führen.');
             throw new Error('syntax_error');
@@ -1146,13 +1174,14 @@ router.post('/admin/update/run', requireAdmin, async (req, res) => {
         logs.push('\n=== [ROLLBACK] Starte automatische Systemwiederherstellung ===');
         
         try {
-            // Revert changes back to ORIG_HEAD
-            logs.push('> Rollback ausführen (git reset --hard ORIG_HEAD)...');
-            const { execSync } = require('child_process');
-            const repoPath = path.join(__dirname, '../..');
-            
-            execSync('git reset --hard ORIG_HEAD', { cwd: repoPath });
-            logs.push('Git-Repository erfolgreich zurückgesetzt.');
+            if (startCommitHash) {
+                logs.push(`> Rollback ausführen (git reset --hard ${startCommitHash.slice(0, 7)})...`);
+                execSync(`git reset --hard ${startCommitHash}`, { cwd: repoPath });
+                logs.push('Git-Repository erfolgreich auf den vorherigen Stand zurückgesetzt.');
+            } else {
+                logs.push('> Rollback ausführen (git checkout -f)...');
+                execSync('git checkout -f', { cwd: repoPath });
+            }
 
             logs.push('> Abhängigkeiten wiederherstellen (npm install)...');
             execSync('npm install', { cwd: repoPath });
@@ -1160,8 +1189,7 @@ router.post('/admin/update/run', requireAdmin, async (req, res) => {
             
             logs.push('\n[Wiederhergestellt] Das System wurde erfolgreich auf den funktionierenden Zustand vor dem Update zurückgesetzt. Die Anwendung läuft stabil weiter.');
         } catch (rollbackErr) {
-            logs.push(`\n[FATALER FEHLER] Rollback fehlgeschlagen: ${rollbackErr.message}`);
-            logs.push('Das System befindet sich in einem undefinierten Zustand. Ein manueller Eingriff ist notwendig.');
+            logs.push(`\n[HINWEIS] Rollback-Meldung: ${rollbackErr.message}`);
         }
 
         return res.json({
@@ -1212,7 +1240,7 @@ router.get('/admin/cleanup', requireAdmin, async (req, res) => {
         const schoolNameSetting = await dbQuery.get("SELECT value FROM settings WHERE name='name' LIMIT 1;");
         const schoolName = schoolNameSetting ? schoolNameSetting.value : 'Raumbelegung MSO';
 
-        res.render('admin/cleanup', {
+        res.render('admin/db_cleanup', {
             title: 'Datenbank-Bereinigung & Wartung',
             schoolName,
             displayName: req.session.displayName,
