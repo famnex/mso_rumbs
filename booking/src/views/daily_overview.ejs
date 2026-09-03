@@ -1,0 +1,366 @@
+<%- include('partials/header') %>
+
+<style>
+    .cat-filter-pill {
+        border-radius: 20px;
+        padding: 6px 14px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.15s ease;
+        border: 1.5px solid transparent;
+        outline: none;
+        user-select: none;
+    }
+    .cat-filter-pill.active {
+        background: rgba(59, 130, 246, 0.12);
+        color: var(--primary, #2563eb);
+        border-color: var(--primary, #2563eb);
+        font-weight: 700;
+    }
+    .cat-filter-pill.inactive {
+        background: var(--bg-secondary, rgba(0, 0, 0, 0.04));
+        color: var(--text-muted, #6b7280);
+        border-color: var(--border-color, #e5e7eb);
+        opacity: 0.6;
+        text-decoration: line-through;
+    }
+    .cat-filter-pill:hover {
+        transform: translateY(-1px);
+    }
+</style>
+
+<div class="calendar-header-bar card">
+    <div class="calendar-info">
+        <div class="calendar-breadcrumb">
+            <a href="/bookings">Dashboard</a> &raquo; <strong>Tagesübersicht</strong>
+        </div>
+        <h2>
+            <span class="room-icon-inline" style="display: inline-flex; align-items: center;">📋</span>
+            Tagesübersicht aller Medien & Räume
+            <span id="daily-total-badge" class="room-location-tag" style="background: rgba(59, 130, 246, 0.15); color: #2563eb; font-weight: 700;">
+                <%= totalBookingsCount %> <%= totalBookingsCount === 1 ? 'Belegung' : 'Belegungen' %>
+            </span>
+        </h2>
+    </div>
+
+    <div class="calendar-controls">
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <a href="/bookings?date=<%= selectedDate %>" class="btn-secondary" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 700; border-radius: 10px; text-decoration: none; padding: 8px 14px; font-size: 13px;">
+                <span>📅 Zum Wochenplan</span>
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Day Navigation Bar -->
+<div class="week-navigation" style="display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 20px;">
+    <div style="display: flex; align-items: center; gap: 8px;">
+        <a href="/bookings/daily?date=<%= prevDate %>" class="btn-nav-week">
+            <span class="nav-text-desktop">&larr; Vorheriger Tag</span>
+            <span class="nav-text-mobile">&larr; Zurück</span>
+        </a>
+    </div>
+
+    <div class="week-title-badge" id="daily-datepicker-trigger" title="Anderen Tag auswählen..." style="position: relative; cursor: pointer;">
+        <span class="nav-badge-desktop">📅 <strong><%= formattedDate %></strong> <%= typeof weekName !== 'undefined' && weekName ? `(${weekName})` : '' %></span>
+        <span class="nav-badge-mobile">📅 <strong><%= formattedDate.split(',')[0] %></strong></span>
+        <!-- Native datepicker input overlay -->
+        <input type="date" id="daily-datepicker-input" value="<%= selectedDate %>" onchange="window.location.href='/bookings/daily?date=' + this.value" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; border: none; padding: 0; z-index: 10; -webkit-appearance: none;">
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 8px;">
+        <% if (selectedDate !== todayDate) { %>
+            <a href="/bookings/daily?date=<%= todayDate %>" class="btn-secondary" style="display: inline-flex; align-items: center; gap: 4px; font-weight: 700; border-radius: 10px; text-decoration: none; padding: 8px 14px; font-size: 13px;">
+                <span>Heute</span>
+            </a>
+        <% } %>
+        <a href="/bookings/daily?date=<%= nextDate %>" class="btn-nav-week">
+            <span class="nav-text-desktop">Nächster Tag &rarr;</span>
+            <span class="nav-text-mobile">Weiter &rarr;</span>
+        </a>
+    </div>
+</div>
+
+<!-- Category Quick Filter Bar (Persistent per user) -->
+<% if (typeof allCategories !== 'undefined' && allCategories && allCategories.length > 0) { %>
+    <div class="card" style="padding: 12px 18px; border-radius: 14px; margin-bottom: 20px; background: var(--bg-card, var(--card-bg)); border: 1px solid var(--border-color);">
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 8px;">
+            <div style="display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 13.5px; color: var(--text-main);">
+                <span>🏷️ Schnellfilter nach Kategorien:</span>
+            </div>
+            <div style="display: flex; gap: 6px; align-items: center;">
+                <button type="button" onclick="setAllCategoryFilters(true)" style="background: none; border: none; color: var(--primary, #2563eb); font-size: 12px; font-weight: 700; cursor: pointer; padding: 2px 6px;">
+                    Alle einblenden
+                </button>
+                <span style="color: var(--border-color);">|</span>
+                <button type="button" onclick="setAllCategoryFilters(false)" style="background: none; border: none; color: var(--text-muted); font-size: 12px; font-weight: 600; cursor: pointer; padding: 2px 6px;">
+                    Alle ausblenden
+                </button>
+            </div>
+        </div>
+        <div id="category-filter-pills" style="display: flex; flex-wrap: wrap; gap: 8px;">
+            <% allCategories.forEach(cat => { %>
+                <button type="button" class="cat-filter-pill active" data-dept-id="<%= cat.department_id %>" onclick="toggleCategoryFilter('<%= cat.department_id %>')">
+                    <span class="cat-filter-icon">✓</span>
+                    <span><%= cat.name %></span>
+                </button>
+            <% }) %>
+        </div>
+    </div>
+<% } %>
+
+<% if (typeof holiday !== 'undefined' && holiday) { %>
+    <div style="margin-bottom: 20px; padding: 14px 20px; border-radius: 14px; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.3); color: var(--text-main); font-size: 14px; display: flex; align-items: center; gap: 12px;">
+        <span style="font-size: 22px;">🏖️</span>
+        <div>
+            <strong>Schulfreier Tag / Ferien:</strong> <%= holiday %>
+        </div>
+    </div>
+<% } %>
+
+<!-- Chronological Timeline View (Darstellung A) -->
+<div class="daily-timeline-container" style="display: flex; flex-direction: column; gap: 16px; margin-bottom: 40px;">
+    <% periods.forEach(period => { %>
+        <% const periodBookings = bookingsByPeriod[period.period_id] || []; %>
+        <% const hasBookings = periodBookings.length > 0; %>
+
+        <div class="card timeline-period-card" style="padding: 0; overflow: hidden; border-radius: 16px; border: 1px solid var(--border-color); <% if (period.color) { %>border-left: 6px solid <%= period.color %>;<% } %>">
+            <!-- Period Header Bar -->
+            <div style="padding: 12px 18px; display: flex; justify-content: space-between; align-items: center; gap: 10px; background: <%= period.color ? period.color + '18' : 'var(--bg-secondary, rgba(0,0,0,0.03))' %>; border-bottom: 1px solid var(--border-color);">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <% if (period.color) { %>
+                        <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: <%= period.color %>; box-shadow: 0 0 8px <%= period.color %>;"></span>
+                    <% } %>
+                    <strong style="font-size: 15px; color: <%= period.color ? period.color : 'var(--text-main)' %>;">
+                        <%= period.name %>
+                    </strong>
+                    <span style="color: var(--text-muted); font-size: 13.5px; font-weight: 600;">
+                        (<%= period.time_start.slice(0, 5) %> – <%= period.time_end.slice(0, 5) %> Uhr)
+                    </span>
+                </div>
+
+                <div>
+                    <% if (hasBookings) { %>
+                        <span class="period-count-badge" style="font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 8px; background: rgba(59, 130, 246, 0.15); color: #2563eb;">
+                            <%= periodBookings.length %> <%= periodBookings.length === 1 ? 'Raum belegt' : 'Räume belegt' %>
+                        </span>
+                        <span class="period-all-free-badge" style="display: none; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 8px; background: rgba(16, 185, 129, 0.1); color: #10b981;">
+                            ✓ Alle sichtbaren Räume frei
+                        </span>
+                    <% } else { %>
+                        <span class="period-all-free-badge" style="font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 8px; background: rgba(16, 185, 129, 0.1); color: #10b981;">
+                            ✓ Alle Räume frei
+                        </span>
+                    <% } %>
+                </div>
+            </div>
+
+            <!-- Period Bookings List -->
+            <div style="padding: 16px;">
+                <% if (hasBookings) { %>
+                    <div class="period-bookings-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px;">
+                        <% periodBookings.forEach(b => { %>
+                            <div class="booking-item-card" data-dept-id="<%= b.department_id || '0' %>" style="padding: 12px 14px; border-radius: 12px; background: var(--bg-card, var(--card-bg)); border: 1px solid var(--border-color); display: flex; flex-direction: column; justify-content: space-between; gap: 8px; transition: transform 0.15s, box-shadow 0.15s;">
+                                <div>
+                                    <!-- Room Info -->
+                                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                                        <div style="font-weight: 800; font-size: 14.5px; display: flex; align-items: center; gap: 6px; color: var(--text-main);">
+                                            <span>
+                                                <% if (b.room_icon === 'computer') { %>💻<% } else if (b.room_icon === 'science') { %>🧪<% } else { %>🏫<% } %>
+                                            </span>
+                                            <%= b.room_name %>
+                                        </div>
+                                        <span style="font-size: 11.5px; padding: 2px 7px; border-radius: 6px; background: var(--bg-secondary, rgba(0,0,0,0.05)); color: var(--text-muted); font-weight: 600;">
+                                            <%= b.department_name || 'Allgemein' %>
+                                        </span>
+                                    </div>
+
+                                    <!-- Teacher / User -->
+                                    <div style="font-size: 13px; color: var(--text-main); font-weight: 600; display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+                                        <span style="opacity: 0.7;">👤</span>
+                                        <%= b.displayname || (b.firstname && b.lastname ? `${b.firstname} ${b.lastname}` : b.username) || 'Unbekannt' %>
+                                    </div>
+
+                                    <!-- Purpose / Class Note -->
+                                    <% if (b.notes) { %>
+                                        <div style="font-size: 12.5px; color: var(--text-muted); display: flex; align-items: baseline; gap: 6px;">
+                                            <span style="opacity: 0.7;">📝</span>
+                                            <span><%= b.notes %></span>
+                                        </div>
+                                    <% } %>
+                                </div>
+
+                                <!-- Badges and Actions Footer -->
+                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 6px; padding-top: 8px; border-top: 1px solid var(--border-color); font-size: 11.5px;">
+                                    <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                        <% if (b.is_timetable) { %>
+                                            <span style="background: rgba(107, 114, 128, 0.15); color: var(--text-muted); padding: 2px 6px; border-radius: 4px; font-weight: 700;">
+                                                🔄 Stundenplan
+                                            </span>
+                                        <% } else { %>
+                                            <span style="background: rgba(59, 130, 246, 0.12); color: #2563eb; padding: 2px 6px; border-radius: 4px; font-weight: 700;">
+                                                📅 Einzelbuchung
+                                            </span>
+                                        <% } %>
+
+                                        <% if (b.group_id) { %>
+                                            <span style="background: rgba(139, 92, 246, 0.15); color: #7c3aed; padding: 2px 6px; border-radius: 4px; font-weight: 700;" title="Teil einer mehrtägigen oder mehrstündigen Belegung">
+                                                🔗 Zeitraum
+                                            </span>
+                                        <% } %>
+                                    </div>
+
+                                    <div style="display: flex; align-items: center; gap: 6px;">
+                                        <a href="/bookings?room_id=<%= b.room_id %>&date=<%= selectedDate %>" title="Im Wochenplan ansehen" style="display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px; background: rgba(59, 130, 246, 0.1); color: #2563eb; text-decoration: none; font-size: 13px;">
+                                            👁️
+                                        </a>
+
+                                        <form action="/bookings/cancel" method="POST" onsubmit="return window.confirmCancelBooking(this, <%= b.group_id ? 'true' : 'false' %>);" style="margin: 0;">
+                                            <input type="hidden" name="booking_id" value="<%= b.booking_id %>">
+                                            <input type="hidden" name="room_id" value="<%= b.room_id %>">
+                                            <input type="hidden" name="date" value="<%= selectedDate %>">
+                                            <input type="hidden" name="redirect_to" value="/bookings/daily?date=<%= selectedDate %>">
+                                            <input type="hidden" name="cancel_all_group" value="0">
+                                            <button type="submit" title="Buchung stornieren" style="display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px; background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); cursor: pointer; font-size: 13px;">
+                                                🗑️
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        <% }) %>
+                    </div>
+                    <div class="period-empty-msg" style="display: none; padding: 10px 14px; border-radius: 8px; background: rgba(16, 185, 129, 0.05); color: var(--text-muted); font-size: 13px; font-weight: 500;">
+                        In den aktuell ausgewählten Kategorien liegen keine Raum- oder Medienbuchungen vor.
+                    </div>
+                <% } else { %>
+                    <div style="padding: 10px 14px; border-radius: 8px; background: rgba(16, 185, 129, 0.05); color: var(--text-muted); font-size: 13px; font-weight: 500;">
+                        In der <%= period.name %> liegen aktuell keine Raum- oder Medienbuchungen vor.
+                    </div>
+                <% } %>
+            </div>
+        </div>
+    <% }) %>
+</div>
+
+<script>
+    const CURRENT_USER_ID = '<%= currentUserId || "default" %>';
+    const STORAGE_KEY = 'crbs_daily_hidden_cats_' + CURRENT_USER_ID;
+
+    // Load hidden category IDs from localStorage
+    function getHiddenCategoryIds() {
+        try {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            return saved ? JSON.parse(saved) : [];
+        } catch(e) {
+            return [];
+        }
+    }
+
+    function saveHiddenCategoryIds(hiddenIds) {
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(hiddenIds));
+        } catch(e) {}
+    }
+
+    function applyCategoryFilters() {
+        const hiddenIds = getHiddenCategoryIds();
+        const pills = document.querySelectorAll('.cat-filter-pill');
+        pills.forEach(pill => {
+            const deptId = pill.dataset.deptId;
+            const isHidden = hiddenIds.includes(deptId);
+            if (isHidden) {
+                pill.classList.remove('active');
+                pill.classList.add('inactive');
+                const icon = pill.querySelector('.cat-filter-icon');
+                if (icon) icon.textContent = '✕';
+            } else {
+                pill.classList.add('active');
+                pill.classList.remove('inactive');
+                const icon = pill.querySelector('.cat-filter-icon');
+                if (icon) icon.textContent = '✓';
+            }
+        });
+
+        // Update booking cards visibility and period counters
+        let grandTotalVisible = 0;
+        document.querySelectorAll('.timeline-period-card').forEach(periodCard => {
+            const bookingCards = periodCard.querySelectorAll('.booking-item-card');
+            let periodVisibleCount = 0;
+
+            bookingCards.forEach(card => {
+                const cardDeptId = card.dataset.deptId;
+                if (hiddenIds.includes(cardDeptId)) {
+                    card.style.display = 'none';
+                } else {
+                    card.style.display = '';
+                    periodVisibleCount++;
+                    grandTotalVisible++;
+                }
+            });
+
+            // Update period count badge & empty message
+            const countBadge = periodCard.querySelector('.period-count-badge');
+            const emptyMsg = periodCard.querySelector('.period-empty-msg');
+            const allFreeMsg = periodCard.querySelector('.period-all-free-badge');
+
+            if (bookingCards.length > 0) {
+                if (countBadge) {
+                    if (periodVisibleCount > 0) {
+                        countBadge.style.display = '';
+                        countBadge.textContent = periodVisibleCount + (periodVisibleCount === 1 ? ' Raum belegt' : ' Räume belegt');
+                        if (allFreeMsg) allFreeMsg.style.display = 'none';
+                    } else {
+                        countBadge.style.display = 'none';
+                        if (allFreeMsg) {
+                            allFreeMsg.style.display = '';
+                            allFreeMsg.textContent = '✓ Alle sichtbaren Räume frei';
+                        }
+                    }
+                }
+                if (emptyMsg) {
+                    emptyMsg.style.display = (periodVisibleCount === 0) ? '' : 'none';
+                }
+            }
+        });
+
+        // Update overall total counter in header
+        const totalTag = document.getElementById('daily-total-badge');
+        if (totalTag) {
+            totalTag.textContent = grandTotalVisible + (grandTotalVisible === 1 ? ' Belegung' : ' Belegungen');
+        }
+    }
+
+    function toggleCategoryFilter(deptId) {
+        let hiddenIds = getHiddenCategoryIds();
+        if (hiddenIds.includes(deptId)) {
+            hiddenIds = hiddenIds.filter(id => id !== deptId);
+        } else {
+            hiddenIds.push(deptId);
+        }
+        saveHiddenCategoryIds(hiddenIds);
+        applyCategoryFilters();
+    }
+
+    function setAllCategoryFilters(enableAll) {
+        let hiddenIds = [];
+        if (!enableAll) {
+            document.querySelectorAll('.cat-filter-pill').forEach(pill => {
+                hiddenIds.push(pill.dataset.deptId);
+            });
+        }
+        saveHiddenCategoryIds(hiddenIds);
+        applyCategoryFilters();
+    }
+
+    // Apply filters immediately on page load
+    document.addEventListener('DOMContentLoaded', applyCategoryFilters);
+    applyCategoryFilters();
+</script>
+
+<%- include('partials/edit_booking_modal') %>
+<%- include('partials/footer') %>

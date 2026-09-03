@@ -24,6 +24,7 @@ Enthält alle getätigten Buchungen für Räume.
 - `cancelled` (TINYINT(1), unsigned, NOT NULL, default '0'): Status, ob die Buchung storniert wurde.
 - `date_start` (DATE, NULL): Gültig ab Datum bei Dauerbuchungen (Stundenplanblockierungen).
 - `date_end` (DATE, NULL): Gültig bis Datum bei Dauerbuchungen (Stundenplanblockierungen).
+- `group_id` (VARCHAR(64), NULL): Eindeutige Gruppen-ID zur Verknüpfung zusammenhängender Mehrstunden- oder Mehrtagesbuchungen (Option zur gemeinsamen Stornierung).
 
 ### 3. `departments`
 Speichert die Abteilungen/Fachbereiche der Schule.
@@ -146,3 +147,8 @@ Um eine sauberere Zuordnung der Räume/Medien zu ermöglichen, wurde die klassis
 ### 2026-08-20: Sonderfarbe für Unterrichtsstunden (periods.color)
 - **Datenbank-Tabelle `periods`**: Spalte `color TEXT` hinzugefügt.
 - **Verwendungszweck**: Ermöglicht Administratoren die Zuweisung einer individuellen Sonderfarbe für Unterrichtsstunden (z. B. Mittagsband, Pause, Betreuung), um diese im Belegungsplan optisch hervorzuheben.
+
+### 2026-09-03: Gruppen-ID für Mehrstunden- und Mehrtagesbuchungen (bookings.group_id)
+- **Datenbank-Tabelle `bookings`**: Spalte `group_id TEXT` hinzugefügt.
+- **Verwendungszweck**: Ermöglicht die Verknüpfung von Buchungssätzen, die zusammenhängend über mehrere Stunden oder mehrere Tage gebucht wurden. Bietet Administratoren beim Stornieren die gezielte Auswahl zwischen „Nur diese Stunde stornieren“ und „Ganzen Zeitraum stornieren“.
+

@@ -353,6 +353,24 @@ function fallbackCopy(input) {
     }
 }
 
+// Global group cancellation confirmation helper
+window.confirmCancelBooking = function(form, hasGroup) {
+    const cancelAllInput = form ? form.querySelector('input[name="cancel_all_group"]') : null;
+    if (hasGroup) {
+        if (confirm('Diese Buchung ist Teil einer mehrtägigen oder mehrstündigen Belegung.\n\nMöchten Sie den GESAMTEN Zeitraum stornieren?\n\n• Klicken Sie auf "OK" für den gesamten Zeitraum.\n• Klicken Sie auf "Abbrechen", um nur diese einzelne Stunde zu stornieren.')) {
+            if (cancelAllInput) cancelAllInput.value = '1';
+            return true;
+        } else {
+            if (confirm('Möchten Sie stattdessen nur diese einzelne Stunde stornieren?')) {
+                if (cancelAllInput) cancelAllInput.value = '0';
+                return true;
+            }
+            return false;
+        }
+    }
+    return confirm('Möchten Sie diese Buchung wirklich stornieren?');
+};
+
 // Document-level click listener for edit booking trigger buttons
 document.addEventListener('click', (e) => {
     const trigger = e.target.closest('.btn-edit-booking-trigger');

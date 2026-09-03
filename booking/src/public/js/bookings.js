@@ -39,6 +39,29 @@ function openBookingModal(roomId, roomName, periodId, periodName, dateStr) {
         dateEndInput.value = lastBis;
     }
 
+    // Admin range fields initialization
+    const isRangeCheckbox = document.getElementById('modal-is-range');
+    if (isRangeCheckbox) {
+        isRangeCheckbox.checked = false;
+        const rangeFields = document.getElementById('modal-range-fields');
+        if (rangeFields) rangeFields.classList.add('hidden');
+
+        const periodStartSelect = document.getElementById('modal-period-id-start');
+        if (periodStartSelect) periodStartSelect.value = periodId;
+
+        const periodEndSelect = document.getElementById('modal-period-id-end');
+        if (periodEndSelect) periodEndSelect.value = periodId;
+
+        const dateRangeStart = document.getElementById('modal-date-range-start');
+        if (dateRangeStart) dateRangeStart.value = dateStr;
+
+        const dateRangeEnd = document.getElementById('modal-date-range-end');
+        if (dateRangeEnd) {
+            dateRangeEnd.value = dateStr;
+            dateRangeEnd.min = dateStr;
+        }
+    }
+
     // Reveal modal with a smooth micro-animation scaling
     modal.classList.remove('hidden');
     document.body.classList.add('modal-open');
@@ -98,14 +121,17 @@ function toggleBookingTypeFields(type) {
     const weekGroup = document.getElementById('modal-week-rotation-group');
     const dateRangeGroup = document.getElementById('modal-date-range-group');
     const dateFormattedInput = document.getElementById('modal-date-formatted');
+    const rangeWrapper = document.getElementById('modal-range-wrapper');
 
     if (type === 'timetable') {
+        if (rangeWrapper) rangeWrapper.classList.add('hidden');
         if (weekGroup) weekGroup.classList.remove('hidden');
         if (dateRangeGroup) dateRangeGroup.classList.remove('hidden');
         if (dateFormattedInput && dateFormattedInput.dataset.weekdayPlural) {
             dateFormattedInput.value = dateFormattedInput.dataset.weekdayPlural;
         }
     } else {
+        if (rangeWrapper) rangeWrapper.classList.remove('hidden');
         if (weekGroup) weekGroup.classList.add('hidden');
         if (dateRangeGroup) dateRangeGroup.classList.add('hidden');
         if (dateFormattedInput && dateFormattedInput.dataset.fullDateFormatted) {
@@ -114,6 +140,28 @@ function toggleBookingTypeFields(type) {
     }
     checkModalCollisions();
 }
+
+window.toggleAdminRangeFields = function(checked) {
+    const rangeFields = document.getElementById('modal-range-fields');
+    if (rangeFields) {
+        if (checked) {
+            rangeFields.classList.remove('hidden');
+        } else {
+            rangeFields.classList.add('hidden');
+        }
+    }
+    checkModalCollisions();
+};
+
+window.syncAdminRangePeriod = function(val) {
+    document.getElementById('modal-period-id').value = val;
+    const startSelect = document.getElementById('modal-period-id-start');
+    const endSelect = document.getElementById('modal-period-id-end');
+    if (startSelect && endSelect && endSelect.selectedIndex < startSelect.selectedIndex) {
+        endSelect.selectedIndex = startSelect.selectedIndex;
+    }
+    checkModalCollisions();
+};
 
 function checkModalCollisions() {
     const bookingTypeSelect = document.getElementById('modal-booking-type');

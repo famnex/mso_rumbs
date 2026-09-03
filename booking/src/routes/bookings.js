@@ -221,6 +221,161 @@ router.get('/bookings', requireLogin, async (req, res) => {
     }
 });
 
+// GET /bookings/daily & /daily (Chronological Daily Overview - Admin only)
+router.get(['/bookings/daily', '/daily'], requireLogin, async (req, res) => {
+    if (req.session.authlevel !== 1) {
+        req.session.error = 'Zugriff verweigert. Die Tagesübersicht steht nur Administratoren zur Verfügung.';
+        return res.redirect('/bookings');
+    }
+
+    let selectedDate = req.query.date;
+    if (!selectedDate || !/^\d{4}-\d{2}-\d{2}$/.test(selectedDate)) {
+        selectedDate = new Date().toISOString().split('T')[0];
+    }
+
+    try {
+        const parts = selectedDate.split('-');
+        const dateObj = new Date(Date.UTC(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2])));
+        const dayNum = dateObj.getUTCDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
+
+        // Prev and Next dates
+        const prevDateObj = new Date(dateObj);
+        prevDateObj.setUTCDate(dateObj.getUTCDate() - 1);
+        const prevDate = prevDateObj.toISOString().split('T')[0];
+
+        const nextDateObj = new Date(dateObj);
+        nextDateObj.setUTCDate(dateObj.getUTCDate() + 1);
+        const nextDate = nextDateObj.toISOString().split('T')[0];
+
+        // Format German date
+        const weekdayNames = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+        const weekdayName = weekdayNames[dayNum];
+        const formattedDate = `${weekdayName}, ${parts[2]}.${parts[1]}.${parts[0]}`;
+
+        // Turnus Week Calculation (Monday in UTC)
+        const mOffset = dayNum === 0 ? -6 : 1 - dayNum;
+        const mondayObj = new Date(dateObj);
+        mondayObj.setUTCDate(dateObj.getUTCDate() + mOffset);
+        const mondayStr = mondayObj.toISOString().split('T')[0];
+
+        const weekMap = await dbQuery.get("SELECT week_id FROM weekdates WHERE date = ?", [mondayStr]);
+        const currentWeekId = weekMap ? weekMap.week_id : null;
+        let weekName = '';
+        if (currentWeekId) {
+            const wk = await dbQuery.get("SELECT name FROM weeks WHERE week_id = ?", [currentWeekId]);
+            if (wk) weekName = wk.name;
+        }
+
+        // Check if holiday
+        const holidays = await dbQuery.all("SELECT * FROM holidays;");
+        const targetTime = new Date(selectedDate).getTime();
+        const holiday = holidays.find(h => {
+            const start = new Date(h.date_start).getTime();
+            const end = new Date(h.date_end).getTime();
+            return targetTime >= start && targetTime <= end;
+        });
+
+        // Fetch all periods
+        const periods = await dbQuery.all("SELECT * FROM periods ORDER BY time_start ASC;");
+
+        // Fetch all categories for quick filtering
+        const allCategories = await dbQuery.all("SELECT * FROM departments ORDER BY name ASC;");
+
+        // Fetch all single-date bookings for this date
+        const singleBookings = await dbQuery.all(`
+            SELECT b.*, r.name as room_name, r.icon as room_icon, r.department_id, d.name as department_name,
+                   u.displayname, u.username, u.firstname, u.lastname
+            FROM bookings b
+            LEFT JOIN rooms r ON b.room_id = r.room_id
+            LEFT JOIN departments d ON r.department_id = d.department_id
+            LEFT JOIN users u ON b.user_id = u.user_id
+            WHERE b.date = ? AND b.cancelled = 0
+            ORDER BY r.name ASC
+        `, [selectedDate]);
+
+        // Fetch all recurring timetable blockings for this dayNum
+        let timetableBookings = [];
+        if (dayNum >= 1 && dayNum <= 5) {
+            timetableBookings = await dbQuery.all(`
+                SELECT b.*, r.name as room_name, r.icon as room_icon, r.department_id, d.name as department_name,
+                       u.displayname, u.username, u.firstname, u.lastname, w.name as week_name
+                FROM bookings b
+                LEFT JOIN rooms r ON b.room_id = r.room_id
+                LEFT JOIN departments d ON r.department_id = d.department_id
+                LEFT JOIN users u ON b.user_id = u.user_id
+                LEFT JOIN weeks w ON b.week_id = w.week_id
+                WHERE b.day_num = ? AND b.date IS NULL AND b.cancelled = 0
+                ORDER BY r.name ASC
+            `, [dayNum]);
+
+            // Filter timetable bookings by turnus and date_start/date_end validity
+            timetableBookings = timetableBookings.filter(tb => {
+                if (tb.week_id && currentWeekId && tb.week_id !== currentWeekId) return false;
+                if (tb.date_start && tb.date_start > selectedDate) return false;
+                if (tb.date_end && tb.date_end < selectedDate) return false;
+                return true;
+            });
+        }
+
+        // Group by period_id
+        const bookingsByPeriod = {};
+        let totalBookingsCount = 0;
+        periods.forEach(p => {
+            bookingsByPeriod[p.period_id] = [];
+        });
+
+        singleBookings.forEach(b => {
+            b.is_single = true;
+            if (!bookingsByPeriod[b.period_id]) bookingsByPeriod[b.period_id] = [];
+            bookingsByPeriod[b.period_id].push(b);
+            totalBookingsCount++;
+        });
+
+        timetableBookings.forEach(tb => {
+            // Check if room is already booked by a single booking in this period
+            const alreadyBooked = (bookingsByPeriod[tb.period_id] || []).some(b => b.room_id === tb.room_id);
+            if (!alreadyBooked) {
+                tb.is_timetable = true;
+                if (!bookingsByPeriod[tb.period_id]) bookingsByPeriod[tb.period_id] = [];
+                bookingsByPeriod[tb.period_id].push(tb);
+                totalBookingsCount++;
+            }
+        });
+
+        const schoolNameSetting = await dbQuery.get("SELECT value FROM settings WHERE name='name' LIMIT 1;");
+        const schoolName = schoolNameSetting ? schoolNameSetting.value : 'Raumbelegung MSO';
+
+        res.render('daily_overview', {
+            title: `Tagesübersicht (${formattedDate})`,
+            schoolName,
+            displayName: req.session.displayName,
+            authlevel: req.session.authlevel,
+            currentUserId: req.session.userId,
+            selectedDate,
+            formattedDate,
+            prevDate,
+            nextDate,
+            weekdayName,
+            weekName,
+            holiday: holiday ? holiday.name : null,
+            periods,
+            allCategories,
+            bookingsByPeriod,
+            totalBookingsCount,
+            todayDate: new Date().toISOString().split('T')[0],
+            error: req.session.error || null,
+            success: req.session.success || null
+        });
+
+        req.session.error = null;
+        req.session.success = null;
+
+    } catch (e) {
+        console.error('Daily overview load error:', e);
+        res.status(500).send('Interner Serverfehler beim Laden der Tagesübersicht.');
+    }
+});
+
 // POST /bookings/set-default-category (Set default category - Admin only setting)
 router.post('/bookings/set-default-category', requireLogin, async (req, res) => {
     const { department_id, redirect_to } = req.body;
@@ -377,6 +532,187 @@ router.post('/bookings/add', requireLogin, async (req, res) => {
             req.session.success = isOverwrite ? 'Stundenplanblockierung gespeichert und bestehende Kollision überschrieben!' : 'Stundenplanblockierung erfolgreich gespeichert!';
             return res.redirect(`/bookings?room_id=${room_id}&date=${date}`);
         } else {
+            // Check if Admin requested a range booking (multiple periods or multiple days)
+            const isRangeBooking = req.session.authlevel === 1 && (
+                req.body.is_range === '1' ||
+                (req.body.date_end_booking && req.body.date_end_booking !== date) ||
+                (req.body.period_id_end && req.body.period_id_end !== period_id)
+            );
+
+            if (isRangeBooking) {
+                const startDate = date;
+                let endDate = (req.body.date_end_booking && req.body.date_end_booking.trim() !== '') ? req.body.date_end_booking.trim() : startDate;
+                if (endDate < startDate) endDate = startDate;
+
+                const startPeriodId = parseInt(req.body.period_id_start || period_id);
+                const endPeriodId = parseInt(req.body.period_id_end || period_id);
+
+                const allPeriods = await dbQuery.all("SELECT * FROM periods ORDER BY time_start ASC;");
+                let startPeriodIdx = allPeriods.findIndex(p => p.period_id === startPeriodId);
+                let endPeriodIdx = allPeriods.findIndex(p => p.period_id === endPeriodId);
+
+                if (startPeriodIdx === -1) startPeriodIdx = 0;
+                if (endPeriodIdx === -1) endPeriodIdx = allPeriods.length - 1;
+
+                if (startDate === endDate && endPeriodIdx < startPeriodIdx) {
+                    const temp = startPeriodIdx;
+                    startPeriodIdx = endPeriodIdx;
+                    endPeriodIdx = temp;
+                }
+
+                // Holidays lookup
+                const holidays = await dbQuery.all("SELECT * FROM holidays;");
+
+                // Generate date sequence from startDate to endDate
+                const slotsToBook = [];
+                const curDateObj = new Date(startDate + 'T00:00:00Z');
+                const endDateObj = new Date(endDate + 'T00:00:00Z');
+
+                while (curDateObj <= endDateObj) {
+                    const curDateStr = curDateObj.toISOString().split('T')[0];
+                    const dayOfWeek = curDateObj.getUTCDay(); // 0=Sun, 6=Sat
+
+                    // Skip weekends
+                    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+                        // Check if holiday
+                        const targetTime = new Date(curDateStr).getTime();
+                        const isHoliday = holidays.some(h => {
+                            const start = new Date(h.date_start).getTime();
+                            const end = new Date(h.date_end).getTime();
+                            return targetTime >= start && targetTime <= end;
+                        });
+
+                        if (!isHoliday) {
+                            let pFrom = 0;
+                            let pTo = allPeriods.length - 1;
+
+                            if (startDate === endDate) {
+                                pFrom = startPeriodIdx;
+                                pTo = endPeriodIdx;
+                            } else if (curDateStr === startDate) {
+                                pFrom = startPeriodIdx;
+                                pTo = allPeriods.length - 1;
+                            } else if (curDateStr === endDate) {
+                                pFrom = 0;
+                                pTo = endPeriodIdx;
+                            } else {
+                                pFrom = 0;
+                                pTo = allPeriods.length - 1;
+                            }
+
+                            for (let pIdx = pFrom; pIdx <= pTo; pIdx++) {
+                                slotsToBook.push({
+                                    date: curDateStr,
+                                    period: allPeriods[pIdx]
+                                });
+                            }
+                        }
+                    }
+
+                    curDateObj.setUTCDate(curDateObj.getUTCDate() + 1);
+                }
+
+                if (slotsToBook.length === 0) {
+                    req.session.error = 'Im ausgewählten Zeitraum liegen keine regulären Unterrichtstage (z. B. nur Wochenende oder Ferien).';
+                    return res.redirect(`/bookings?room_id=${room_id}&date=${date}`);
+                }
+
+                // Collision check across all slotsToBook
+                const collisions = [];
+                for (const slot of slotsToBook) {
+                    // Check single booking collision
+                    const singleColl = await dbQuery.get(`
+                        SELECT b.*, u.displayname, u.username
+                        FROM bookings b
+                        LEFT JOIN users u ON b.user_id = u.user_id
+                        WHERE b.room_id = ? AND b.period_id = ? AND b.date = ? AND b.cancelled = 0
+                    `, [room_id, slot.period.period_id, slot.date]);
+
+                    if (singleColl) {
+                        collisions.push({
+                            slot,
+                            coll: singleColl,
+                            type: 'single'
+                        });
+                        continue;
+                    }
+
+                    // Check timetable collision
+                    const slotParts = slot.date.split('-');
+                    const slotUtc = new Date(Date.UTC(parseInt(slotParts[0]), parseInt(slotParts[1]) - 1, parseInt(slotParts[2])));
+                    const slotDayNum = slotUtc.getUTCDay();
+
+                    // Find Monday of slot
+                    const slotMOffset = slotDayNum === 0 ? -6 : 1 - slotDayNum;
+                    slotUtc.setUTCDate(slotUtc.getUTCDate() + slotMOffset);
+                    const slotMonday = slotUtc.toISOString().split('T')[0];
+
+                    const slotWk = await dbQuery.get("SELECT week_id FROM weekdates WHERE date = ?", [slotMonday]);
+                    const slotWeekId = slotWk ? slotWk.week_id : null;
+
+                    const ttColl = await dbQuery.get(`
+                        SELECT b.*, u.displayname, u.username, w.name as week_name
+                        FROM bookings b
+                        LEFT JOIN users u ON b.user_id = u.user_id
+                        LEFT JOIN weeks w ON b.week_id = w.week_id
+                        WHERE b.room_id = ? AND b.period_id = ? AND b.day_num = ? AND b.date IS NULL AND b.cancelled = 0
+                          AND (b.week_id IS NULL OR b.week_id = ?)
+                          AND (b.date_start IS NULL OR b.date_start <= ?)
+                          AND (b.date_end IS NULL OR b.date_end >= ?)
+                    `, [room_id, slot.period.period_id, slotDayNum, slotWeekId, slot.date, slot.date]);
+
+                    if (ttColl) {
+                        collisions.push({
+                            slot,
+                            coll: ttColl,
+                            type: 'timetable'
+                        });
+                    }
+                }
+
+                if (collisions.length > 0) {
+                    if (isOverwrite) {
+                        // Soft-cancel or delete colliding bookings
+                        for (const c of collisions) {
+                            if (c.type === 'single') {
+                                await dbQuery.run("UPDATE bookings SET cancelled = 1 WHERE booking_id = ?", [c.coll.booking_id]);
+                            } else {
+                                await dbQuery.run("DELETE FROM bookings WHERE booking_id = ?", [c.coll.booking_id]);
+                            }
+                        }
+                    } else {
+                        const collDetails = collisions.slice(0, 4).map(c => {
+                            const uName = c.coll.displayname || c.coll.username || 'Unbekannt';
+                            const note = c.coll.notes ? ` ("${c.coll.notes}")` : '';
+                            return `${c.slot.date.split('-').reverse().join('.')} (${c.slot.period.name}): belegt von ${uName}${note}`;
+                        }).join('; ');
+                        const moreText = collisions.length > 4 ? ` ...und ${collisions.length - 4} weitere` : '';
+
+                        req.session.error = `Kollisionen im Zeitraum gefunden (${collisions.length} Konflikte): ${collDetails}${moreText}. Setzen Sie den Haken bei "Kollisionen überschreiben", um diese zu ersetzen.`;
+                        return res.redirect(`/bookings?room_id=${room_id}&date=${date}`);
+                    }
+                }
+
+                // Generate group_id for multi-slot booking
+                const groupId = slotsToBook.length > 1 ? `grp_${Date.now()}_${Math.random().toString(36).substring(2, 8)}` : null;
+
+                for (const slot of slotsToBook) {
+                    await dbQuery.run(`
+                        INSERT INTO bookings (room_id, period_id, user_id, date, notes, cancelled, group_id)
+                        VALUES (?, ?, ?, ?, ?, 0, ?)
+                    `, [room_id, slot.period.period_id, req.session.userId, slot.date, notes || '', groupId]);
+                }
+
+                const dateDisplayStart = startDate.split('-').reverse().join('.');
+                const dateDisplayEnd = endDate.split('-').reverse().join('.');
+                const timeSpanText = startDate === endDate ? `am ${dateDisplayStart}` : `vom ${dateDisplayStart} bis ${dateDisplayEnd}`;
+
+                req.session.success = isOverwrite 
+                    ? `Erfolgreich ${slotsToBook.length} Stunde(n) ${timeSpanText} gebucht und bestehende Kollisionen überschrieben!`
+                    : `Erfolgreich ${slotsToBook.length} Stunde(n) ${timeSpanText} gebucht!`;
+                return res.redirect(`/bookings?room_id=${room_id}&date=${date}`);
+            }
+
             // Standard single booking
             const existing = await dbQuery.get(
                 `SELECT b.*, u.displayname, u.username
@@ -417,7 +753,7 @@ router.post('/bookings/add', requireLogin, async (req, res) => {
 
 // POST /bookings/cancel (Cancel Dynamic Booking or Timetable Block)
 router.post('/bookings/cancel', requireLogin, async (req, res) => {
-    const { booking_id, room_id, date, redirect_to } = req.body;
+    const { booking_id, room_id, date, redirect_to, cancel_all_group } = req.body;
 
     if (!booking_id) {
         req.session.error = 'Ungültige Stornierungsdaten.';
@@ -437,8 +773,12 @@ router.post('/bookings/cancel', requireLogin, async (req, res) => {
             return res.redirect(redirect_to || `/bookings?room_id=${room_id || booking.room_id}&date=${date || booking.date}`);
         }
 
-        // If it's a timetable entry (date IS NULL or day_num IS NOT NULL), delete it completely
-        if (booking.date === null || booking.day_num !== null) {
+        if (cancel_all_group === '1' && booking.group_id) {
+            // Cancel all bookings sharing this group_id
+            await dbQuery.run("UPDATE bookings SET cancelled = 1 WHERE group_id = ?", [booking.group_id]);
+            req.session.success = 'Alle Buchungen des zusammenhängenden Zeitraums wurden erfolgreich storniert!';
+        } else if (booking.date === null || booking.day_num !== null) {
+            // If it's a timetable entry (date IS NULL or day_num IS NOT NULL), delete it completely
             await dbQuery.run("DELETE FROM bookings WHERE booking_id = ?", [booking_id]);
             req.session.success = 'Stundenplaneintrag erfolgreich gelöscht!';
         } else {

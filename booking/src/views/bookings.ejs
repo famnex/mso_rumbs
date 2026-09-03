@@ -132,6 +132,11 @@
             <span class="nav-text-desktop">Nächste Woche &rarr;</span>
             <span class="nav-text-mobile">Weiter &rarr;</span>
         </a>
+        <% if (typeof authlevel !== 'undefined' && authlevel === 1) { %>
+            <a href="/bookings/daily?date=<%= selectedDate %>" class="btn-secondary" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 700; border-radius: 10px; text-decoration: none; padding: 8px 14px; font-size: 13px;">
+                <span>📋 Tagesübersicht</span>
+            </a>
+        <% } %>
         <button type="button" class="btn-secondary" onclick="openShareModal('<%= room.room_id %>', '<%= selectedDate %>')" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 700; border-radius: 10px; cursor: pointer; padding: 8px 14px; font-size: 13px;">
             <span>🔗 Teilen</span>
         </button>
@@ -262,10 +267,11 @@
                                                 onclick="handleEditBtnClick(event, this)">
                                                 ✏️
                                             </button>
-                                            <form action="/bookings/cancel" method="POST" class="cancel-form" onsubmit="return confirm('Möchten Sie diese Buchung wirklich stornieren?');" onclick="event.stopPropagation()">
+                                            <form action="/bookings/cancel" method="POST" class="cancel-form" onsubmit="return window.confirmCancelBooking(this, <%= booking.group_id ? 'true' : 'false' %>);" onclick="event.stopPropagation()">
                                                 <input type="hidden" name="booking_id" value="<%= booking.booking_id %>">
                                                 <input type="hidden" name="room_id" value="<%= room.room_id %>">
                                                 <input type="hidden" name="date" value="<%= selectedDate %>">
+                                                <input type="hidden" name="cancel_all_group" value="0">
                                                 <button type="submit" class="btn-slot-cancel" title="Stornieren" onclick="event.stopPropagation()">
                                                     <svg class="trash-icon" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
                                                 </button>
@@ -390,7 +396,7 @@
                 </div>
             </div>
 
-            <div class="form-group">
+            <div class="form-group" id="modal-period-single-group">
                 <label>Unterrichtsstunde</label>
                 <input type="text" id="modal-period-name" readonly class="input-readonly">
             </div>
@@ -402,6 +408,49 @@
                         <option value="single">Einzelreservierung (für dieses Datum)</option>
                         <option value="timetable">Dauerhafte Stundenplanblockierung</option>
                     </select>
+                </div>
+
+                <!-- Admin Range Booking Section (Mehrtägig / Mehrstündig) -->
+                <div id="modal-range-wrapper" style="margin-bottom: 15px; padding: 12px 14px; border-radius: 10px; background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.2);">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 700; color: var(--primary); font-size: 13.5px; margin-bottom: 0;">
+                        <input type="checkbox" id="modal-is-range" name="is_range" value="1" onchange="toggleAdminRangeFields(this.checked)" style="width: 17px; height: 17px; accent-color: var(--primary); cursor: pointer;">
+                        <span>📅 Mehrtägige / Mehrstündige Buchung (Zeitraum)</span>
+                    </label>
+                    
+                    <div id="modal-range-fields" class="hidden" style="margin-top: 10px;">
+                        <div class="form-row" style="margin-bottom: 10px;">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label for="modal-period-id-start" style="font-size: 12px;">Von Stunde:</label>
+                                <select name="period_id_start" id="modal-period-id-start" onchange="syncAdminRangePeriod(this.value)" style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); font-weight: 600;">
+                                    <% periods.forEach(p => { %>
+                                        <option value="<%= p.period_id %>"><%= p.name %> (<%= p.time_start.slice(0,5) %> - <%= p.time_end.slice(0,5) %>)</option>
+                                    <% }) %>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label for="modal-period-id-end" style="font-size: 12px;">Bis Stunde:</label>
+                                <select name="period_id_end" id="modal-period-id-end" onchange="checkModalCollisions()" style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); font-weight: 600;">
+                                    <% periods.forEach(p => { %>
+                                        <option value="<%= p.period_id %>"><%= p.name %> (<%= p.time_start.slice(0,5) %> - <%= p.time_end.slice(0,5) %>)</option>
+                                    <% }) %>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label for="modal-date-range-start" style="font-size: 12px;">Startdatum:</label>
+                                <input type="date" id="modal-date-range-start" readonly class="input-readonly" style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border-color); font-weight: 600;">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label for="modal-date-range-end" style="font-size: 12px;">Enddatum:</label>
+                                <input type="date" name="date_end_booking" id="modal-date-range-end" onchange="checkModalCollisions()" style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); font-weight: 600;">
+                            </div>
+                        </div>
+                        <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 6px;">
+                            💡 <em>Wochenenden und Feiertage werden im gewählten Zeitraum automatisch übersprungen.</em>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="form-group hidden" id="modal-week-rotation-group" style="margin-bottom: 15px;">

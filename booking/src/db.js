@@ -58,6 +58,7 @@ async function initializeDatabase() {
         if (bookingsTableCheck) {
             try { await dbQuery.run("ALTER TABLE bookings ADD COLUMN date_start TEXT;"); } catch(e){}
             try { await dbQuery.run("ALTER TABLE bookings ADD COLUMN date_end TEXT;"); } catch(e){}
+            try { await dbQuery.run("ALTER TABLE bookings ADD COLUMN group_id TEXT;"); } catch(e){}
         }
 
         const periodsTableCheck = await dbQuery.get("SELECT name FROM sqlite_master WHERE type='table' AND name='periods';");
@@ -92,7 +93,8 @@ async function initializeDatabase() {
             notes TEXT,
             cancelled INTEGER NOT NULL DEFAULT 0,
             date_start TEXT,
-            date_end TEXT
+            date_end TEXT,
+            group_id TEXT
         );`);
 
         // 3. departments
