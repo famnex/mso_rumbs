@@ -72,10 +72,14 @@ Das Berechtigungskonzept unterscheidet zwei Stufen:
     *   Verwaltung von Räumen, Unterrichtsstunden, Benutzern und Systemstatistiken.
     *   Darf jede Buchung stornieren (auch die von anderen Lehrern).
 2.  **`TEACHER` (Berechtigungsstufe 2):**
-    *   Eingeschränkter Lehrer-Zugang.
+    *   Regulärer Lehrer-Zugang.
     *   Darf freie Stunden über das Dashboard oder den interaktiven Wochenplaner buchen.
     *   Darf ausschließlich eigene Buchungen stornieren.
     *   Kein Zugriff auf administrative Systemsteuerung.
+3.  **Granulare Medien- & Kategorien-Freigabe (Standard: Vollzugriff):**
+    *   Standardmäßig (`allowed_departments = NULL` und `allowed_rooms = NULL`) haben alle Benutzer Zugriff auf sämtliche Kategorien und Medien.
+    *   In der Benutzerverwaltung (`/admin/users` &rarr; *Bearbeiten*) kann der Zugriff pro Benutzer auf **„🔒 Zugriff beschränken“** umgestellt werden.
+    *   Dabei lassen sich sowohl ganze Kategorien als auch einzelne Medien/Räume per Checkbox auswählen; alle übrigen Kategorien und Medien werden für diesen Benutzer im Kalender ausgeblendet und serverseitig für Buchungen gesperrt.
 
 ---
 

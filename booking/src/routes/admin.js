@@ -178,6 +178,13 @@ router.post('/admin/periods/add', requireAdmin, async (req, res) => {
 router.get('/admin/users', requireAdmin, async (req, res) => {
     try {
         const users = await dbQuery.all("SELECT * FROM users ORDER BY username ASC;");
+        const departments = await dbQuery.all("SELECT * FROM departments ORDER BY name ASC;");
+        const rooms = await dbQuery.all(`
+            SELECT r.*, d.name as department_name 
+            FROM rooms r 
+            LEFT JOIN departments d ON r.department_id = d.department_id 
+            ORDER BY r.name ASC;
+        `);
         const schoolNameSetting = await dbQuery.get("SELECT value FROM settings WHERE name='name' LIMIT 1;");
         const schoolName = schoolNameSetting ? schoolNameSetting.value : 'Raumbelegung MSO';
 
@@ -186,6 +193,8 @@ router.get('/admin/users', requireAdmin, async (req, res) => {
             schoolName,
             displayName: req.session.displayName,
             users,
+            departments,
+            rooms,
             error: req.session.error || null,
             success: req.session.success || null
         });
@@ -820,7 +829,7 @@ router.post('/admin/holidays/edit', requireAdmin, async (req, res) => {
 
 // POST /admin/users/edit
 router.post('/admin/users/edit', requireAdmin, async (req, res) => {
-    const { user_id, username, firstname, lastname, email, password, authlevel } = req.body;
+    const { user_id, username, firstname, lastname, email, password, authlevel, access_mode, allowed_departments, allowed_rooms } = req.body;
     if (!user_id || !username || !authlevel) {
         req.session.error = 'Benutzer-ID, Username und Berechtigungsstufe sind erforderlich.';
         return res.redirect('/admin/users');
@@ -828,20 +837,34 @@ router.post('/admin/users/edit', requireAdmin, async (req, res) => {
     try {
         const parsedAuth = parseInt(authlevel);
         const displayname = `${firstname} ${lastname}`.trim() || username;
+
+        let allowedDeptsJson = null;
+        let allowedRoomsJson = null;
+
+        if (access_mode === 'restricted') {
+            const rawDepts = allowed_departments ? (Array.isArray(allowed_departments) ? allowed_departments : [allowed_departments]) : [];
+            const deptArr = rawDepts.map(id => parseInt(id, 10)).filter(id => !isNaN(id));
+
+            const rawRooms = allowed_rooms ? (Array.isArray(allowed_rooms) ? allowed_rooms : [allowed_rooms]) : [];
+            const roomArr = rawRooms.map(id => parseInt(id, 10)).filter(id => !isNaN(id));
+
+            allowedDeptsJson = JSON.stringify(deptArr);
+            allowedRoomsJson = JSON.stringify(roomArr);
+        }
         
         if (password && password.trim().length > 0) {
             const salt = await bcrypt.genSalt(10);
             const passwordHash = await bcrypt.hash(password, salt);
             await dbQuery.run(
-                `UPDATE users SET username = ?, firstname = ?, lastname = ?, email = ?, displayname = ?, password = ?, authlevel = ? 
+                `UPDATE users SET username = ?, firstname = ?, lastname = ?, email = ?, displayname = ?, password = ?, authlevel = ?, allowed_departments = ?, allowed_rooms = ? 
                  WHERE user_id = ?`,
-                [username, firstname || '', lastname || '', email || '', displayname, passwordHash, parsedAuth, parseInt(user_id)]
+                [username, firstname || '', lastname || '', email || '', displayname, passwordHash, parsedAuth, allowedDeptsJson, allowedRoomsJson, parseInt(user_id)]
             );
         } else {
             await dbQuery.run(
-                `UPDATE users SET username = ?, firstname = ?, lastname = ?, email = ?, displayname = ?, authlevel = ? 
+                `UPDATE users SET username = ?, firstname = ?, lastname = ?, email = ?, displayname = ?, authlevel = ?, allowed_departments = ?, allowed_rooms = ? 
                  WHERE user_id = ?`,
-                [username, firstname || '', lastname || '', email || '', displayname, parsedAuth, parseInt(user_id)]
+                [username, firstname || '', lastname || '', email || '', displayname, parsedAuth, allowedDeptsJson, allowedRoomsJson, parseInt(user_id)]
             );
         }
         req.session.success = `Benutzerkonto '${username}' erfolgreich aktualisiert!`;

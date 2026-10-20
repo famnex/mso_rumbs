@@ -69,6 +69,8 @@ async function initializeDatabase() {
         // Check if users table exists
         const tableCheck = await dbQuery.get("SELECT name FROM sqlite_master WHERE type='table' AND name='users';");
         if (tableCheck) {
+            try { await dbQuery.run("ALTER TABLE users ADD COLUMN allowed_departments TEXT;"); } catch(e){}
+            try { await dbQuery.run("ALTER TABLE users ADD COLUMN allowed_rooms TEXT;"); } catch(e){}
             console.log('Database tables already exist.');
             return;
         }
@@ -181,7 +183,9 @@ async function initializeDatabase() {
             ext TEXT,
             lastlogin TEXT,
             enabled INTEGER NOT NULL DEFAULT 1,
-            created TEXT
+            created TEXT,
+            allowed_departments TEXT,
+            allowed_rooms TEXT
         );`);
 
         // 12. weekdates

@@ -144,6 +144,13 @@
 </div>
 
 <!-- The Weekly Schedule Grid -->
+<% if (typeof noAllowedRooms !== 'undefined' && noAllowedRooms) { %>
+    <div class="card" style="padding: 40px 24px; text-align: center; margin-top: 16px;">
+        <div style="font-size: 42px; margin-bottom: 12px;">🔒</div>
+        <h3 style="margin-bottom: 8px;">Keine Medien oder Räume freigegeben</h3>
+        <p class="text-muted" style="max-width: 520px; margin: 0 auto;">Für Ihr Benutzerkonto wurden derzeit keine Kategorien oder Medien zur Buchung freigeschaltet. Bitte wenden Sie sich bei Fragen an einen Administrator.</p>
+    </div>
+<% } else { %>
 <div class="calendar-grid-container card">
     <table class="modern-calendar">
         <thead>
@@ -370,6 +377,7 @@
         </tbody>
     </table>
 </div>
+<% } %>
 
 <!-- High-End Glassmorphic Booking Overlay Modal -->
 <div id="booking-modal" class="modal-overlay hidden" onclick="closeBookingModal(event)">

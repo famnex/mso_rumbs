@@ -34,6 +34,7 @@
                     <th>Name</th>
                     <th>E-Mail</th>
                     <th>Rolle</th>
+                    <th>Medienzugriff</th>
                     <th>Letzter Login</th>
                     <th style="text-align: right;">Aktionen</th>
                 </tr>
@@ -41,6 +42,7 @@
             <tbody>
                 <% if (users && users.length) { %>
                     <% users.forEach(user => { %>
+                        <% const isRestricted = (user.allowed_departments !== null && user.allowed_departments !== undefined) || (user.allowed_rooms !== null && user.allowed_rooms !== undefined); %>
                         <tr>
                             <td><%= user.user_id %></td>
                             <td><strong><%= user.username %></strong></td>
@@ -50,6 +52,17 @@
                                 <span class="role-badge <%= user.authlevel === 1 ? 'status-open' : 'status-closed' %>" style="padding: 4px 10px; font-weight: 700; border-radius: 30px; font-size:11.5px; <%= user.authlevel === 1 ? 'background: var(--warning-bg); color: var(--warning);' : 'background: var(--primary-glow); color: var(--primary);' %>">
                                     <%= user.authlevel === 1 ? 'Administrator' : 'Lehrer' %>
                                 </span>
+                            </td>
+                            <td>
+                                <% if (!isRestricted) { %>
+                                    <span style="display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; font-weight: 700; border-radius: 30px; font-size: 11.5px; background: rgba(16, 185, 129, 0.12); color: var(--success, #10b981);">
+                                        🌐 Alle Medien
+                                    </span>
+                                <% } else { %>
+                                    <span style="display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; font-weight: 700; border-radius: 30px; font-size: 11.5px; background: rgba(245, 158, 11, 0.14); color: var(--warning, #f59e0b);">
+                                        🔒 Eingeschränkt
+                                    </span>
+                                <% } %>
                             </td>
                             <td>
                                 <span class="text-muted small">
@@ -80,13 +93,27 @@
                     <% }) %>
                 <% } else { %>
                     <tr>
-                        <td colspan="7" class="text-center">Keine Benutzer im System.</td>
+                        <td colspan="8" class="text-center">Keine Benutzer im System.</td>
                     </tr>
                 <% } %>
             </tbody>
         </table>
     </div>
 </div>
+
+<script>
+    window.usersAccessData = {
+        <% if (users && users.length) { %>
+            <% users.forEach(u => { %>
+                "<%= u.user_id %>": {
+                    restricted: <%= (u.allowed_departments !== null && u.allowed_departments !== undefined) || (u.allowed_rooms !== null && u.allowed_rooms !== undefined) ? 'true' : 'false' %>,
+                    depts: <%- (u.allowed_departments && u.allowed_departments.trim().startsWith('[')) ? u.allowed_departments : '[]' %>,
+                    rooms: <%- (u.allowed_rooms && u.allowed_rooms.trim().startsWith('[')) ? u.allowed_rooms : '[]' %>
+                },
+            <% }) %>
+        <% } %>
+    };
+</script>
 
 <!-- Add User Modal -->
 <div id="add-user-modal" class="modal-overlay hidden" onclick="closeModal('add-user-modal')">
@@ -141,19 +168,29 @@
 
 <!-- Edit User Modal -->
 <div id="edit-user-modal" class="modal-overlay hidden" onclick="closeModal('edit-user-modal')">
-    <div class="modal-card card" onclick="event.stopPropagation()">
+    <div class="modal-card card" style="max-width: 620px; width: 95%;" onclick="event.stopPropagation()">
         <div class="modal-header">
             <h3>✏️ Benutzer bearbeiten</h3>
             <button class="btn-close-modal" onclick="closeModal('edit-user-modal')">&times;</button>
         </div>
-        <p class="modal-desc">Passen Sie die Stammdaten oder das Kennwort des Kontos an.</p>
+        <p class="modal-desc">Passen Sie Stammdaten, Rolle sowie sichtbare und buchbare Kategorien / Medien an.</p>
         
         <form action="/admin/users/edit" method="POST" class="modern-form compact">
             <input type="hidden" name="user_id" id="edit-user-id">
+            <input type="hidden" name="access_mode" id="edit-user-access-mode" value="all">
             
-            <div class="form-group">
-                <label for="edit-user-username">Benutzername</label>
-                <input type="text" name="username" id="edit-user-username" required>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="edit-user-username">Benutzername</label>
+                    <input type="text" name="username" id="edit-user-username" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-user-auth">Berechtigungsstufe / Rolle</label>
+                    <select name="authlevel" id="edit-user-auth" required style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); font-weight: 600; cursor: pointer; outline: none; transition: border-color 0.2s;">
+                        <option value="2">Lehrer (Standard)</option>
+                        <option value="1">Administrator</option>
+                    </select>
+                </div>
             </div>
 
             <div class="form-row">
@@ -167,25 +204,92 @@
                 </div>
             </div>
 
-            <div class="form-group">
-                <label for="edit-user-email">E-Mail Adresse</label>
-                <input type="email" name="email" id="edit-user-email">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="edit-user-email">E-Mail Adresse</label>
+                    <input type="email" name="email" id="edit-user-email">
+                </div>
+                <div class="form-group">
+                    <label for="edit-user-password">Neues Passwort (optional)</label>
+                    <input type="password" name="password" id="edit-user-password" placeholder="Leer = unverändert">
+                </div>
             </div>
 
-            <div class="form-group">
-                <label for="edit-user-password">Neues Passwort (leer lassen für keine Änderung)</label>
-                <input type="password" name="password" id="edit-user-password" placeholder="Nur bei Passwortänderung füllen">
+            <!-- Media & Category Access Restriction Control -->
+            <div class="form-group" style="margin-top: 8px; padding-top: 14px; border-top: 1px solid var(--border-color);">
+                <label style="margin-bottom: 8px; display: block; font-weight: 700;">Sichtbare & buchbare Kategorien / Medien</label>
+
+                <div class="mode-toggle-bar" style="display: flex; background: var(--bg-secondary, rgba(0,0,0,0.06)); padding: 4px; border-radius: 12px; margin-bottom: 12px; border: 1px solid var(--border-color); gap: 4px;">
+                    <button type="button" id="btn-user-access-all" onclick="setEditUserAccessMode('all')" style="flex: 1; padding: 9px 12px; border: none; border-radius: 9px; font-weight: 700; font-size: 13px; cursor: pointer; transition: all 0.2s ease; background: var(--bg-card, #ffffff); color: var(--primary, #2563eb); box-shadow: 0 2px 6px rgba(0,0,0,0.08);">
+                        🌐 Alle Medien (Standard)
+                    </button>
+                    <button type="button" id="btn-user-access-restricted" onclick="setEditUserAccessMode('restricted')" style="flex: 1; padding: 9px 12px; border: none; border-radius: 9px; font-weight: 700; font-size: 13px; cursor: pointer; transition: all 0.2s ease; background: transparent; color: var(--text-muted);">
+                        🔒 Zugriff beschränken
+                    </button>
+                </div>
+
+                <!-- Standard Info Notice -->
+                <div id="edit-user-access-all-hint" style="padding: 12px 14px; border-radius: 10px; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); color: var(--text-main); font-size: 13px; display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 18px;">✅</span>
+                    <span>Dieser Benutzer kann auf <strong>alle Kategorien und Medien</strong> zugreifen.</span>
+                </div>
+
+                <!-- Restricted Category & Room Picker -->
+                <div id="edit-user-access-restricted-box" class="hidden" style="border: 1px solid var(--border-color); border-radius: 12px; background: var(--input-bg); overflow: hidden;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: rgba(59, 130, 246, 0.06); border-bottom: 1px solid var(--border-color); flex-wrap: wrap; gap: 8px;">
+                        <span id="edit-user-access-counter" style="font-size: 12.5px; font-weight: 700; color: var(--primary);">0 Medien ausgewählt</span>
+                        <div style="display: flex; gap: 8px;">
+                            <button type="button" onclick="toggleAllUserAccessCheckboxes(true)" style="padding: 4px 10px; font-size: 11.5px; font-weight: 700; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); cursor: pointer;">Alle auswählen</button>
+                            <button type="button" onclick="toggleAllUserAccessCheckboxes(false)" style="padding: 4px 10px; font-size: 11.5px; font-weight: 700; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-muted); cursor: pointer;">Alle abwählen</button>
+                        </div>
+                    </div>
+
+                    <div style="max-height: 260px; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 12px;">
+                        <% if (typeof departments !== 'undefined' && departments && departments.length) { %>
+                            <% departments.forEach(dept => { %>
+                                <% const deptRooms = (typeof rooms !== 'undefined' && rooms) ? rooms.filter(r => r.department_id == dept.department_id) : []; %>
+                                <div class="access-dept-group" style="border: 1px solid var(--border-color); border-radius: 10px; padding: 10px 12px; background: var(--bg-card);">
+                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 700; font-size: 13.5px; color: var(--text-main); margin-bottom: <%= deptRooms.length ? '8px' : '0' %>; padding-bottom: <%= deptRooms.length ? '6px' : '0' %>; border-bottom: <%= deptRooms.length ? '1px dashed var(--border-color)' : 'none' %>;">
+                                        <input type="checkbox" class="edit-user-dept-cb" name="allowed_departments" value="<%= dept.department_id %>" data-dept-id="<%= dept.department_id %>" onchange="onUserDeptCheckboxChange(this)" style="width: 17px; height: 17px; accent-color: var(--primary); cursor: pointer;">
+                                        <span>📂 Kategorie: <%= dept.name %></span>
+                                        <span style="margin-left: auto; font-size: 11px; font-weight: 600; color: var(--text-muted); background: var(--input-bg); padding: 2px 8px; border-radius: 12px;"><%= deptRooms.length %> Medien</span>
+                                    </label>
+
+                                    <% if (deptRooms.length > 0) { %>
+                                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 6px; padding-left: 8px;">
+                                            <% deptRooms.forEach(r => { %>
+                                                <label style="display: flex; align-items: center; gap: 7px; cursor: pointer; font-size: 12.5px; font-weight: 500; color: var(--text-main); padding: 4px 6px; border-radius: 6px;">
+                                                    <input type="checkbox" class="edit-user-room-cb" name="allowed_rooms" value="<%= r.room_id %>" data-dept-id="<%= dept.department_id %>" onchange="onUserRoomCheckboxChange(this)" style="width: 15px; height: 15px; accent-color: var(--primary); cursor: pointer;">
+                                                    <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="<%= r.name %>"><%= r.name %></span>
+                                                </label>
+                                            <% }) %>
+                                        </div>
+                                    <% } %>
+                                </div>
+                            <% }) %>
+                        <% } %>
+
+                        <% const unassignedRooms = (typeof rooms !== 'undefined' && rooms) ? rooms.filter(r => !r.department_id) : []; %>
+                        <% if (unassignedRooms.length > 0) { %>
+                            <div class="access-dept-group" style="border: 1px solid var(--border-color); border-radius: 10px; padding: 10px 12px; background: var(--bg-card);">
+                                <div style="font-weight: 700; font-size: 13.5px; color: var(--text-muted); margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px dashed var(--border-color);">
+                                    📦 Ohne Kategorie
+                                </div>
+                                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 6px; padding-left: 8px;">
+                                    <% unassignedRooms.forEach(r => { %>
+                                        <label style="display: flex; align-items: center; gap: 7px; cursor: pointer; font-size: 12.5px; font-weight: 500; color: var(--text-main); padding: 4px 6px; border-radius: 6px;">
+                                            <input type="checkbox" class="edit-user-room-cb" name="allowed_rooms" value="<%= r.room_id %>" data-dept-id="" onchange="onUserRoomCheckboxChange(this)" style="width: 15px; height: 15px; accent-color: var(--primary); cursor: pointer;">
+                                            <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="<%= r.name %>"><%= r.name %></span>
+                                        </label>
+                                    <% }) %>
+                                </div>
+                            </div>
+                        <% } %>
+                    </div>
+                </div>
             </div>
 
-            <div class="form-group">
-                <label for="edit-user-auth">Berechtigungsstufe / Rolle</label>
-                <select name="authlevel" id="edit-user-auth" required style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); font-weight: 600; cursor: pointer; outline: none; transition: border-color 0.2s;">
-                    <option value="2">Lehrer (Standard)</option>
-                    <option value="1">Administrator</option>
-                </select>
-            </div>
-
-            <button type="submit" class="btn-primary-block">
+            <button type="submit" class="btn-primary-block" style="margin-top: 14px;">
                 <span>💾 Änderungen speichern</span>
             </button>
         </form>

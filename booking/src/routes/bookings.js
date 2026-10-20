@@ -18,37 +18,110 @@ router.get('/dashboard', requireLogin, (req, res) => {
     res.redirect('/bookings');
 });
 
+// Helper function to load user's media/category access restrictions
+async function getUserAccessFilter(userId) {
+    if (!userId) {
+        return { restricted: false, allowedDeptIds: null, allowedRoomIds: null };
+    }
+    const user = await dbQuery.get("SELECT authlevel, allowed_departments, allowed_rooms FROM users WHERE user_id = ?;", [userId]);
+    if (!user) {
+        return { restricted: false, allowedDeptIds: null, allowedRoomIds: null };
+    }
+    // Standard: when both are null, user has access to all media
+    if (user.allowed_departments === null && user.allowed_rooms === null) {
+        return { restricted: false, allowedDeptIds: null, allowedRoomIds: null };
+    }
+    let allowedDeptIds = [];
+    let allowedRoomIds = [];
+    try {
+        if (user.allowed_departments) {
+            allowedDeptIds = JSON.parse(user.allowed_departments).map(Number).filter(n => !isNaN(n));
+        }
+    } catch (e) {}
+    try {
+        if (user.allowed_rooms) {
+            allowedRoomIds = JSON.parse(user.allowed_rooms).map(Number).filter(n => !isNaN(n));
+        }
+    } catch (e) {}
+
+    return {
+        restricted: true,
+        allowedDeptIds,
+        allowedRoomIds
+    };
+}
+
+function isRoomAllowed(room, accessFilter) {
+    if (!accessFilter || !accessFilter.restricted) return true;
+    const rId = Number(room.room_id);
+    const dId = room.department_id ? Number(room.department_id) : null;
+    if (accessFilter.allowedRoomIds.includes(rId)) return true;
+    if (dId !== null && accessFilter.allowedDeptIds.includes(dId)) return true;
+    return false;
+}
+
 // Helper function to load all calendar data for both logged-in and public read-only views
-async function fetchBookingCalendarData(req, roomId, selectedDate) {
+async function fetchBookingCalendarData(req, roomId, selectedDate, isPublic = false) {
     if (!selectedDate) {
         selectedDate = new Date().toISOString().split('T')[0];
     }
 
-    if (!roomId) {
-        const defaultCatSetting = await dbQuery.get("SELECT value FROM settings WHERE name='default_category_id' LIMIT 1;");
-        let firstRoom = null;
-        if (defaultCatSetting && defaultCatSetting.value) {
-            const defaultCatId = parseInt(defaultCatSetting.value);
-            firstRoom = await dbQuery.get("SELECT room_id FROM rooms WHERE department_id = ? AND bookable = 1 ORDER BY name ASC LIMIT 1;", [defaultCatId]);
-        }
-        if (!firstRoom) {
-            firstRoom = await dbQuery.get("SELECT room_id FROM rooms WHERE bookable = 1 ORDER BY name ASC LIMIT 1;");
-        }
-        if (firstRoom) {
-            roomId = firstRoom.room_id;
-        }
-    }
-
-    const room = await dbQuery.get(`
+    let allRooms = await dbQuery.all(`
         SELECT r.*, d.name as department_name 
         FROM rooms r 
         LEFT JOIN departments d ON r.department_id = d.department_id 
-        WHERE r.room_id = ?;
-    `, [roomId]);
+        WHERE r.bookable = 1 
+        ORDER BY r.name ASC;
+    `);
 
-    if (!room) return null;
+    const accessFilter = (!isPublic && req && req.session && req.session.userId)
+        ? await getUserAccessFilter(req.session.userId)
+        : { restricted: false, allowedDeptIds: null, allowedRoomIds: null };
 
-    const allRooms = await dbQuery.all("SELECT * FROM rooms WHERE bookable = 1 ORDER BY name ASC;");
+    if (accessFilter.restricted) {
+        allRooms = allRooms.filter(r => isRoomAllowed(r, accessFilter));
+    }
+
+    const defaultCatSetting = await dbQuery.get("SELECT value FROM settings WHERE name='default_category_id' LIMIT 1;");
+    const systemDefaultCategoryId = (defaultCatSetting && defaultCatSetting.value) ? parseInt(defaultCatSetting.value) : null;
+
+    let headerCategories = await dbQuery.all("SELECT * FROM departments ORDER BY name ASC;");
+    if (accessFilter.restricted) {
+        const visibleDeptIds = new Set(accessFilter.allowedDeptIds);
+        for (const r of allRooms) {
+            if (r.department_id) visibleDeptIds.add(Number(r.department_id));
+        }
+        headerCategories = headerCategories.filter(cat => visibleDeptIds.has(Number(cat.department_id)));
+    }
+
+    let room = null;
+    let noAllowedRooms = false;
+
+    if (allRooms.length === 0) {
+        if (isPublic) return null;
+        noAllowedRooms = true;
+        room = {
+            room_id: 0,
+            name: 'Keine Medien freigegeben',
+            department_id: null,
+            department_name: 'Eingeschränkter Zugriff',
+            icon: 'computer'
+        };
+    } else {
+        if (roomId) {
+            room = allRooms.find(r => r.room_id == roomId) || null;
+        }
+        if (!room) {
+            if (systemDefaultCategoryId) {
+                room = allRooms.find(r => r.department_id == systemDefaultCategoryId) || null;
+            }
+            if (!room) {
+                room = allRooms[0];
+            }
+        }
+        roomId = room.room_id;
+    }
+
     const periods = await dbQuery.all("SELECT * FROM periods ORDER BY time_start ASC;");
     const weeks = await dbQuery.all("SELECT * FROM weeks ORDER BY name ASC;");
 
@@ -75,7 +148,7 @@ async function fetchBookingCalendarData(req, roomId, selectedDate) {
         if (wk) weekName = wk.name;
     }
 
-    const allRoomBookings = await dbQuery.all(
+    const allRoomBookings = noAllowedRooms ? [] : await dbQuery.all(
         `SELECT b.*, u.displayname, u.username, u.firstname, u.lastname, w.name as week_name
          FROM bookings b
          LEFT JOIN users u ON b.user_id = u.user_id
@@ -122,9 +195,6 @@ async function fetchBookingCalendarData(req, roomId, selectedDate) {
         holidayMap[dateStr] = matchingHoliday ? matchingHoliday.name : null;
     }
 
-    const defaultCatSetting = await dbQuery.get("SELECT value FROM settings WHERE name='default_category_id' LIMIT 1;");
-    const systemDefaultCategoryId = (defaultCatSetting && defaultCatSetting.value) ? parseInt(defaultCatSetting.value) : null;
-
     const allWeekDates = await dbQuery.all("SELECT * FROM weekdates;");
     const weekDatesMap = {};
     for (const r of allWeekDates) {
@@ -134,12 +204,11 @@ async function fetchBookingCalendarData(req, roomId, selectedDate) {
     const academicYear = await dbQuery.get("SELECT * FROM academicyears LIMIT 1;");
     const isOutsideAcademicYear = (academicYear && academicYear.date_start && academicYear.date_end) ? (weekDates[4] < academicYear.date_start || weekDates[0] > academicYear.date_end) : false;
 
-    const headerCategories = await dbQuery.all("SELECT * FROM departments ORDER BY name ASC;");
-
     return {
         schoolName,
         room,
         allRooms,
+        noAllowedRooms,
         periods,
         weeks,
         weekDates,
@@ -165,7 +234,7 @@ router.get(['/bookings/public', '/public'], async (req, res) => {
     try {
         let roomId = req.query.room_id;
         let selectedDate = req.query.date;
-        const data = await fetchBookingCalendarData(req, roomId, selectedDate);
+        const data = await fetchBookingCalendarData(req, roomId, selectedDate, true);
         if (!data) {
             req.session.error = 'Der ausgewählte Raum existiert nicht.';
             return res.redirect('/login');
@@ -194,7 +263,7 @@ router.get('/bookings', requireLogin, async (req, res) => {
     let selectedDate = req.query.date;
     
     try {
-        const data = await fetchBookingCalendarData(req, roomId, selectedDate);
+        const data = await fetchBookingCalendarData(req, roomId, selectedDate, false);
         if (!data) {
             req.session.error = 'Der ausgewählte Raum existiert nicht.';
             return res.redirect('/bookings');
@@ -411,6 +480,14 @@ router.post('/bookings/add', requireLogin, async (req, res) => {
     }
 
     try {
+        // Verify user has permission to access and book this room
+        const targetRoom = await dbQuery.get("SELECT * FROM rooms WHERE room_id = ?;", [room_id]);
+        const accessFilter = await getUserAccessFilter(req.session.userId);
+        if (!targetRoom || !isRoomAllowed(targetRoom, accessFilter)) {
+            req.session.error = 'Zugriff verweigert: Sie haben keine Berechtigung, dieses Medium / diesen Raum zu buchen.';
+            return res.redirect('/bookings');
+        }
+
         // Block single bookings on holidays
         if (booking_type !== 'timetable') {
             const holidays = await dbQuery.all("SELECT * FROM holidays;");

@@ -104,6 +104,8 @@ Benutzerkonten des Systems.
 - `lastlogin` (DATETIME, NULL): Zeitstempel des letzten Logins.
 - `enabled` (TINYINT(1), unsigned, NOT NULL, default '1'): Aktivierungsstatus (1 = Aktiv, 0 = Gesperrt).
 - `created` (DATETIME, NULL): Erstellungszeitstempel.
+- `allowed_departments` (TEXT, NULL): JSON-Array freigegebener Kategorie-IDs (z. B. `[1, 3]`), falls der Benutzerzugriff eingeschränkt ist (`NULL` = Standard-Vollzugriff auf alle Medien).
+- `allowed_rooms` (TEXT, NULL): JSON-Array freigegebener Medien-/Raum-IDs (z. B. `[5, 12]`), falls der Benutzerzugriff eingeschränkt ist (`NULL` = Standard-Vollzugriff auf alle Medien).
 
 ### 12. `weekdates`
 Mapping von Kalenderdaten zu Schulwochen (A/B-Wochen).
@@ -151,4 +153,8 @@ Um eine sauberere Zuordnung der Räume/Medien zu ermöglichen, wurde die klassis
 ### 2026-09-03: Gruppen-ID für Mehrstunden- und Mehrtagesbuchungen (bookings.group_id)
 - **Datenbank-Tabelle `bookings`**: Spalte `group_id TEXT` hinzugefügt.
 - **Verwendungszweck**: Ermöglicht die Verknüpfung von Buchungssätzen, die zusammenhängend über mehrere Stunden oder mehrere Tage gebucht wurden. Bietet Administratoren beim Stornieren die gezielte Auswahl zwischen „Nur diese Stunde stornieren“ und „Ganzen Zeitraum stornieren“.
+
+### 2026-10-20: Individuelle Medien- und Kategorien-Zugriffsbeschränkung pro Benutzer (users.allowed_departments / users.allowed_rooms)
+- **Datenbank-Tabelle `users`**: Spalten `allowed_departments TEXT` und `allowed_rooms TEXT` hinzugefügt.
+- **Verwendungszweck**: Im Standard (`NULL`) haben alle Benutzer Vollzugriff auf sämtliche Kategorien und Medien. Über die Benutzerverwaltung (`Bearbeiten`) kann der Zugriff gezielt auf einzelne Kategorien und/oder einzelne Medien beschränkt werden; nicht freigegebene Kategorien und Medien werden für den Benutzer im Belegungsplan ausgeblendet und gegen Buchungen gesperrt.
 

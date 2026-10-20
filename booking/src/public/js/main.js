@@ -272,6 +272,97 @@ window.openEditHolidayModal = function(id, name, start, end) {
     openModal('edit-holiday-modal');
 };
 
+window.setEditUserAccessMode = function(mode) {
+    const modeInput = document.getElementById('edit-user-access-mode');
+    const btnAll = document.getElementById('btn-user-access-all');
+    const btnRestricted = document.getElementById('btn-user-access-restricted');
+    const hintAll = document.getElementById('edit-user-access-all-hint');
+    const boxRestricted = document.getElementById('edit-user-access-restricted-box');
+
+    if (modeInput) modeInput.value = mode === 'restricted' ? 'restricted' : 'all';
+
+    if (mode === 'restricted') {
+        if (btnRestricted) {
+            btnRestricted.style.background = 'var(--bg-card, #ffffff)';
+            btnRestricted.style.color = 'var(--primary, #2563eb)';
+            btnRestricted.style.boxShadow = '0 2px 6px rgba(0,0,0,0.08)';
+        }
+        if (btnAll) {
+            btnAll.style.background = 'transparent';
+            btnAll.style.color = 'var(--text-muted)';
+            btnAll.style.boxShadow = 'none';
+        }
+        if (hintAll) hintAll.classList.add('hidden');
+        if (boxRestricted) boxRestricted.classList.remove('hidden');
+    } else {
+        if (btnAll) {
+            btnAll.style.background = 'var(--bg-card, #ffffff)';
+            btnAll.style.color = 'var(--primary, #2563eb)';
+            btnAll.style.boxShadow = '0 2px 6px rgba(0,0,0,0.08)';
+        }
+        if (btnRestricted) {
+            btnRestricted.style.background = 'transparent';
+            btnRestricted.style.color = 'var(--text-muted)';
+            btnRestricted.style.boxShadow = 'none';
+        }
+        if (hintAll) hintAll.classList.remove('hidden');
+        if (boxRestricted) boxRestricted.classList.add('hidden');
+    }
+};
+
+window.updateUserAccessSummary = function() {
+    const counterEl = document.getElementById('edit-user-access-counter');
+    if (!counterEl) return;
+    const checkedRooms = document.querySelectorAll('.edit-user-room-cb:checked').length;
+    const checkedDepts = document.querySelectorAll('.edit-user-dept-cb:checked').length;
+    counterEl.textContent = `${checkedRooms} Medien / ${checkedDepts} ganze Kategorien ausgewählt`;
+};
+
+window.onUserDeptCheckboxChange = function(deptCb) {
+    if (!deptCb) return;
+    const deptId = deptCb.getAttribute('data-dept-id');
+    deptCb.indeterminate = false;
+    const roomCbs = document.querySelectorAll(`.edit-user-room-cb[data-dept-id="${deptId}"]`);
+    roomCbs.forEach(cb => {
+        cb.checked = deptCb.checked;
+    });
+    window.updateUserAccessSummary();
+};
+
+window.onUserRoomCheckboxChange = function(roomCb) {
+    if (!roomCb) return;
+    const deptId = roomCb.getAttribute('data-dept-id');
+    if (deptId) {
+        const deptCb = document.querySelector(`.edit-user-dept-cb[data-dept-id="${deptId}"]`);
+        const roomCbs = Array.from(document.querySelectorAll(`.edit-user-room-cb[data-dept-id="${deptId}"]`));
+        if (deptCb && roomCbs.length > 0) {
+            const checkedCount = roomCbs.filter(cb => cb.checked).length;
+            if (checkedCount === 0) {
+                deptCb.checked = false;
+                deptCb.indeterminate = false;
+            } else if (checkedCount === roomCbs.length) {
+                deptCb.checked = true;
+                deptCb.indeterminate = false;
+            } else {
+                deptCb.checked = false;
+                deptCb.indeterminate = true;
+            }
+        }
+    }
+    window.updateUserAccessSummary();
+};
+
+window.toggleAllUserAccessCheckboxes = function(checkAll) {
+    document.querySelectorAll('.edit-user-dept-cb').forEach(cb => {
+        cb.checked = !!checkAll;
+        cb.indeterminate = false;
+    });
+    document.querySelectorAll('.edit-user-room-cb').forEach(cb => {
+        cb.checked = !!checkAll;
+    });
+    window.updateUserAccessSummary();
+};
+
 window.openEditUserModal = function(id, username, first, last, email, auth) {
     document.getElementById('edit-user-id').value = id;
     document.getElementById('edit-user-username').value = username;
@@ -280,6 +371,43 @@ window.openEditUserModal = function(id, username, first, last, email, auth) {
     document.getElementById('edit-user-email').value = email || "";
     document.getElementById('edit-user-auth').value = auth;
     document.getElementById('edit-user-password').value = ""; // Always clear password field on open
+
+    const accessData = (window.usersAccessData && window.usersAccessData[id])
+        ? window.usersAccessData[id]
+        : { restricted: false, depts: [], rooms: [] };
+
+    const allowedDepts = Array.isArray(accessData.depts) ? accessData.depts.map(Number) : [];
+    const allowedRooms = Array.isArray(accessData.rooms) ? accessData.rooms.map(Number) : [];
+
+    // Reset all checkboxes first
+    document.querySelectorAll('.edit-user-dept-cb').forEach(cb => {
+        const dId = Number(cb.value);
+        cb.checked = accessData.restricted && allowedDepts.includes(dId);
+        cb.indeterminate = false;
+    });
+
+    document.querySelectorAll('.edit-user-room-cb').forEach(cb => {
+        const rId = Number(cb.value);
+        const dId = cb.getAttribute('data-dept-id') ? Number(cb.getAttribute('data-dept-id')) : null;
+        cb.checked = accessData.restricted && (allowedRooms.includes(rId) || (dId !== null && allowedDepts.includes(dId)));
+    });
+
+    // Update indeterminate states for department checkboxes
+    document.querySelectorAll('.edit-user-dept-cb').forEach(deptCb => {
+        const deptId = deptCb.getAttribute('data-dept-id');
+        const roomCbs = Array.from(document.querySelectorAll(`.edit-user-room-cb[data-dept-id="${deptId}"]`));
+        if (roomCbs.length > 0 && !deptCb.checked) {
+            const checkedCount = roomCbs.filter(cb => cb.checked).length;
+            if (checkedCount > 0 && checkedCount < roomCbs.length) {
+                deptCb.indeterminate = true;
+            } else if (checkedCount === roomCbs.length) {
+                deptCb.checked = true;
+            }
+        }
+    });
+
+    window.setEditUserAccessMode(accessData.restricted ? 'restricted' : 'all');
+    window.updateUserAccessSummary();
     openModal('edit-user-modal');
 };
 
