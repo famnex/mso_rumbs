@@ -1479,6 +1479,13 @@ body.modal-open {
 }
 
 /* Admin lists table */
+.table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    box-sizing: border-box;
+}
+
 .admin-list-table,
 .zebra-table {
     width: 100%;

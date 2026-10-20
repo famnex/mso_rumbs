@@ -25,72 +25,116 @@
         </button>
     </div>
 
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-wrap: wrap;">
+        <div style="position: relative; flex: 1; min-width: 240px; max-width: 420px;">
+            <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 14px; pointer-events: none;">🔍</span>
+            <input type="text" id="user-search-input" placeholder="Benutzername, Name, E-Mail oder Zugriff suchen..." oninput="filterUsersTable()" style="width: 100%; padding: 9px 34px 9px 36px; border-radius: 10px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); font-size: 13.5px; outline: none; box-sizing: border-box;">
+            <button type="button" id="user-search-clear" onclick="clearUserSearch()" class="hidden" title="Suche zurücksetzen" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 14px; padding: 4px;">✕</button>
+        </div>
+        <div id="user-search-count" style="font-size: 12.5px; font-weight: 700; color: var(--text-muted);">
+            <%= users ? users.length : 0 %> Benutzer
+        </div>
+    </div>
+
+    <style>
+        .users-compact-table th,
+        .users-compact-table td {
+            padding: 12px 12px !important;
+        }
+        .btn-icon-action {
+            padding: 7px 10px !important;
+            margin-right: 4px !important;
+            line-height: 1;
+            font-size: 14px !important;
+            justify-content: center;
+        }
+        .btn-icon-action:last-child {
+            margin-right: 0 !important;
+        }
+    </style>
+
     <div class="table-responsive">
-        <table class="zebra-table">
+        <table class="zebra-table users-compact-table" id="users-management-table">
             <thead>
                 <tr>
-                    <th>ID</th>
+                    <th style="width: 50px;">ID</th>
                     <th>Benutzername</th>
                     <th>Name</th>
                     <th>E-Mail</th>
                     <th>Rolle</th>
                     <th>Medienzugriff</th>
                     <th>Letzter Login</th>
-                    <th style="text-align: right;">Aktionen</th>
+                    <th style="text-align: right; width: 125px;">Aktionen</th>
                 </tr>
             </thead>
             <tbody>
                 <% if (users && users.length) { %>
                     <% users.forEach(user => { %>
                         <% const isRestricted = (user.allowed_departments !== null && user.allowed_departments !== undefined) || (user.allowed_rooms !== null && user.allowed_rooms !== undefined); %>
-                        <tr>
+                        <% const fullName = user.displayname || `${user.firstname || ''} ${user.lastname || ''}`.trim() || '-'; %>
+                        <% const roleLabel = user.authlevel === 1 ? 'Administrator' : 'Lehrer'; %>
+                        <% const accessLabel = isRestricted ? 'Eingeschränkt' : 'Alle Medien'; %>
+                        <% const statusLabel = user.enabled ? 'Aktiv' : 'Gesperrt'; %>
+                        <tr class="user-table-row" data-search="<%= `${user.user_id} ${user.username} ${fullName} ${user.email || ''} ${roleLabel} ${accessLabel} ${statusLabel}`.toLowerCase() %>">
                             <td><%= user.user_id %></td>
-                            <td><strong><%= user.username %></strong></td>
-                            <td><%= user.displayname || `${user.firstname} ${user.lastname}` || '-' %></td>
-                            <td><span class="text-muted"><%= user.email || '-' %></span></td>
                             <td>
-                                <span class="role-badge <%= user.authlevel === 1 ? 'status-open' : 'status-closed' %>" style="padding: 4px 10px; font-weight: 700; border-radius: 30px; font-size:11.5px; <%= user.authlevel === 1 ? 'background: var(--warning-bg); color: var(--warning);' : 'background: var(--primary-glow); color: var(--primary);' %>">
-                                    <%= user.authlevel === 1 ? 'Administrator' : 'Lehrer' %>
+                                <strong><%= user.username %></strong>
+                                <% if (!user.enabled) { %>
+                                    <span style="display: inline-block; margin-left: 4px; font-size: 10px; padding: 1px 6px; border-radius: 10px; background: var(--danger-bg); color: var(--danger);">Gesperrt</span>
+                                <% } %>
+                            </td>
+                            <td><%= fullName %></td>
+                            <td style="max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="<%= user.email || '' %>">
+                                <span class="text-muted"><%= user.email || '-' %></span>
+                            </td>
+                            <td>
+                                <span class="role-badge <%= user.authlevel === 1 ? 'status-open' : 'status-closed' %>" style="padding: 4px 10px; font-weight: 700; border-radius: 30px; font-size:11.5px; white-space: nowrap; <%= user.authlevel === 1 ? 'background: var(--warning-bg); color: var(--warning);' : 'background: var(--primary-glow); color: var(--primary);' %>">
+                                    <%= roleLabel %>
                                 </span>
                             </td>
                             <td>
                                 <% if (!isRestricted) { %>
-                                    <span style="display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; font-weight: 700; border-radius: 30px; font-size: 11.5px; background: rgba(16, 185, 129, 0.12); color: var(--success, #10b981);">
+                                    <span style="display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; font-weight: 700; border-radius: 30px; font-size: 11.5px; white-space: nowrap; background: rgba(16, 185, 129, 0.12); color: var(--success, #10b981);">
                                         🌐 Alle Medien
                                     </span>
                                 <% } else { %>
-                                    <span style="display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; font-weight: 700; border-radius: 30px; font-size: 11.5px; background: rgba(245, 158, 11, 0.14); color: var(--warning, #f59e0b);">
+                                    <span style="display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; font-weight: 700; border-radius: 30px; font-size: 11.5px; white-space: nowrap; background: rgba(245, 158, 11, 0.14); color: var(--warning, #f59e0b);">
                                         🔒 Eingeschränkt
                                     </span>
                                 <% } %>
                             </td>
-                            <td>
+                            <td style="white-space: nowrap;">
                                 <span class="text-muted small">
                                     <%= user.lastlogin ? new Date(user.lastlogin).toLocaleString('de-DE') : 'Nie' %>
                                 </span>
                             </td>
                             <td style="text-align: right; white-space: nowrap;">
-                                <button class="btn-edit-sm" onclick="openEditUserModal('<%= user.user_id %>', '<%= user.username %>', '<%= user.firstname || '' %>', '<%= user.lastname || '' %>', '<%= user.email || '' %>', '<%= user.authlevel %>')">
-                                    ✏️ Bearbeiten
+                                <button class="btn-edit-sm btn-icon-action" title="Benutzer bearbeiten" onclick="openEditUserModal('<%= user.user_id %>', '<%= user.username %>', '<%= user.firstname || '' %>', '<%= user.lastname || '' %>', '<%= user.email || '' %>', '<%= user.authlevel %>')">
+                                    ✏️
                                 </button>
                                 
                                 <form action="/admin/users/toggle" method="POST" style="display:inline;">
                                     <input type="hidden" name="user_id" value="<%= user.user_id %>">
                                     <input type="hidden" name="enabled" value="<%= user.enabled ? '0' : '1' %>">
-                                    <button type="submit" class="btn-success-sm" style="<%= user.enabled ? 'background: var(--danger-bg); color: var(--danger-hover); border-color: rgba(239,68,68,0.2);' : '' %>">
-                                        <%= user.enabled ? '🚫 Sperren' : '🔑 Aktivieren' %>
+                                    <button type="submit" class="btn-success-sm btn-icon-action" title="<%= user.enabled ? 'Benutzer sperren' : 'Benutzer aktivieren' %>" style="<%= user.enabled ? 'background: var(--danger-bg); color: var(--danger-hover); border-color: rgba(239,68,68,0.2);' : '' %>">
+                                        <%= user.enabled ? '🚫' : '🔑' %>
                                     </button>
                                 </form>
                                 
                                 <% if (user.username !== 'admin') { %>
                                     <form action="/admin/users/delete" method="POST" style="display:inline;" onsubmit="return confirm('Möchten Sie diesen Benutzer wirklich löschen? Alle seine Reservierungen werden entfernt!');">
                                         <input type="hidden" name="user_id" value="<%= user.user_id %>">
-                                        <button type="submit" class="btn-danger-sm">🗑️ Löschen</button>
+                                        <button type="submit" class="btn-danger-sm btn-icon-action" title="Benutzer löschen">🗑️</button>
                                     </form>
                                 <% } %>
                             </td>
                         </tr>
                     <% }) %>
+                    <tr id="user-search-empty-row" class="hidden">
+                        <td colspan="8" class="text-center" style="padding: 28px !important; color: var(--text-muted);">
+                            🔍 Keine Benutzer für diese Suchanfrage gefunden.
+                        </td>
+                    </tr>
                 <% } else { %>
                     <tr>
                         <td colspan="8" class="text-center">Keine Benutzer im System.</td>
@@ -112,6 +156,51 @@
                 },
             <% }) %>
         <% } %>
+    };
+
+    window.filterUsersTable = function() {
+        const input = document.getElementById('user-search-input');
+        const clearBtn = document.getElementById('user-search-clear');
+        const countEl = document.getElementById('user-search-count');
+        const emptyRow = document.getElementById('user-search-empty-row');
+        if (!input) return;
+
+        const query = input.value.trim().toLowerCase();
+        if (clearBtn) {
+            if (query.length > 0) clearBtn.classList.remove('hidden');
+            else clearBtn.classList.add('hidden');
+        }
+
+        const rows = document.querySelectorAll('tr.user-table-row');
+        let visibleCount = 0;
+
+        rows.forEach(row => {
+            const hay = row.getAttribute('data-search') || '';
+            if (!query || hay.includes(query)) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        if (emptyRow) {
+            if (visibleCount === 0 && rows.length > 0) emptyRow.classList.remove('hidden');
+            else emptyRow.classList.add('hidden');
+        }
+
+        if (countEl) {
+            countEl.textContent = query ? `${visibleCount} von ${rows.length} Benutzern` : `${rows.length} Benutzer`;
+        }
+    };
+
+    window.clearUserSearch = function() {
+        const input = document.getElementById('user-search-input');
+        if (input) {
+            input.value = '';
+            window.filterUsersTable();
+            input.focus();
+        }
     };
 </script>
 
